@@ -76,6 +76,22 @@ DUPLICATE_FILE_BLOCK_SECONDS = 60
 # FFMPEG VIDEO SETTINGS — TIKTOK MAX
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Delogo настройки (координаты в процентах от размера видео)
+DELOGO_SETTINGS = {
+    "tiktok_logo": {  # Логотип TikTok справа внизу
+        "x_percent": 0.75,
+        "y_percent": 0.88,
+        "w_percent": 0.22,
+        "h_percent": 0.10,
+    },
+    "tiktok_username": {  # Ник автора слева внизу
+        "x_percent": 0.02,
+        "y_percent": 0.85,
+        "w_percent": 0.50,
+        "h_percent": 0.12,
+    },
+}
+
 TIKTOK_VIDEO = {
     "crop_min": 0.965,
     "crop_max": 0.985,
@@ -157,7 +173,6 @@ TEXTS = {
     "processing": "⏳ Обрабатываем видео...",
     "done": "✅ Готово",
     "error": "⚠️ Не удалось обработать видео. Попробуй другой файл.",
-    "error_download": "⚠️ Не удалось скачать видео. Проверь ссылку.",
     "invalid_format": "⚠️ Отправь видео в формате MP4 или MOV",
     "file_too_large": "⚠️ Видео слишком большое. Максимум — 100 МБ",
     "video_too_long": "⚠️ Видео слишком длинное. Максимум — 2 минуты",
