@@ -192,12 +192,6 @@ async def handle_video(message: Message):
         await message.answer(TEXTS["file_too_large"])
         return
     
-    # Проверка длительности видео (только для video, не document)
-    if message.video and message.video.duration:
-        if message.video.duration > MAX_VIDEO_DURATION_SECONDS:
-            await message.answer(TEXTS["video_too_long"])
-            return
-    
     file_unique_id = file.file_unique_id
     
     if rate_limiter.check_duplicate_file(user_id, file_unique_id):
