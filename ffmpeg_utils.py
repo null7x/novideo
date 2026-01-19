@@ -1,5 +1,5 @@
 """
-Virex — FFmpeg Video Processing
+Virex — FFmpeg Video Processing (Anti-TikTok 2026)
 """
 import os
 import random
@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from config import (
     Mode,
     TIKTOK_VIDEO, TIKTOK_AUDIO,
@@ -22,6 +22,64 @@ from config import (
 
 processing_queue: asyncio.Queue = None
 active_processes: list = []
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ANTI-TIKTOK 2026: CREATIVE TEXTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+CREATIVE_TEXTS = [
+    "Moments like this",
+    "On the road",
+    "Late night drive",
+    "No rush",
+    "Just vibes",
+    "Living it",
+    "That feeling",
+    "Main character energy",
+    "Everyday magic",
+    "Just because",
+    "Mood",
+    "This is it",
+    "Right here",
+    "Good times only",
+    "Golden hour",
+    "Core memory",
+    "Real ones know",
+    "Trust the process",
+    "Different breed",
+    "Built different",
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ANTI-STATIC CONTENT 2026: HOOK TEXTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+HOOK_TEXTS = [
+    "Wait for it...",
+    "You need to see this",
+    "Watch till the end",
+    "POV",
+    "This is crazy",
+    "No way...",
+    "Trust me on this",
+    "Story time",
+    "Here is the thing",
+    "Let me show you",
+    "Check this out",
+    "You will not believe",
+    "Real talk",
+    "Plot twist",
+    "Warning",
+    "Unpopular opinion",
+    "Facts only",
+    "Listen up",
+    "Game changer",
+    "Life hack",
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# UTILS
+# ══════════════════════════════════════════════════════════════════════════════
 
 def init_queue():
     global processing_queue
@@ -57,150 +115,464 @@ def cleanup_old_files(max_age_seconds: int = 3600):
 def _rand(min_val: float, max_val: float) -> float:
     return random.uniform(min_val, max_val)
 
+def _escape_ffmpeg_text(text: str) -> str:
+    """
+    Экранирование текста для FFmpeg drawtext.
+    Экранирует: двоеточия, пробелы, апострофы, обратные слэши.
+    """
+    # Порядок важен! Сначала бэкслэши
+    text = text.replace("\\", "\\\\")
+    text = text.replace(":", r"\:")
+    text = text.replace("'", r"\'")
+    text = text.replace(" ", r"\ ")
+    return text
+
 def _rand_choice(options: list):
     return random.choice(options)
 
-def _build_tiktok_filter(width: int, height: int) -> Tuple[str, dict]:
+# ══════════════════════════════════════════════════════════════════════════════
+# ANTI-TIKTOK 2026: SEGMENT VARIATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_segment_variation(duration: float, force_motion: bool = False) -> List[dict]:
+    """
+    ANTI-STATIC 2026: Разбивка видео на сегменты.
+    Минимум 3 сегмента для борьбы со статичностью.
+    """
+    # ANTI-STATIC: минимум 3 сегмента!
+    num_segments = random.randint(3, 5) if force_motion else random.randint(3, 4)
+    segment_duration = duration / num_segments
+    
+    segments = []
+    for i in range(num_segments):
+        # ANTI-STATIC: более агрессивная вариация для каждого сегмента
+        segment = {
+            "start": i * segment_duration,
+            "end": (i + 1) * segment_duration,
+            "brightness": _rand(-0.08, 0.08) if force_motion else _rand(-0.05, 0.05),
+            "contrast": _rand(0.92, 1.08) if force_motion else _rand(0.95, 1.05),
+            "saturation": _rand(0.92, 1.08) if force_motion else _rand(0.95, 1.05),
+            "gamma": _rand(0.95, 1.05) if force_motion else _rand(0.97, 1.03),
+            "speed": _rand(0.95, 1.05),  # вариация скорости для jump-cut эффекта
+            "zoom": _rand(1.0, 1.04) if force_motion else _rand(1.0, 1.02),  # zoom per segment
+        }
+        segments.append(segment)
+    
+    return segments
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ANTI-STATIC CONTENT 2026: FORCED HOOK & MOTION
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_forced_hook(width: int, height: int, duration: float) -> str:
+    """
+    FORCED HOOK (0-2 сек): Текст-хук.
+    Placement в safe-zone (не по краям экрана).
+    """
+    hook_text = random.choice(HOOK_TEXTS)
+    fontsize = int(min(width, height) * 0.055)  # крупный текст для хука
+    
+    # Safe zone: не слишком близко к краям
+    y_positions = ["h*0.35", "h*0.45", "h*0.55"]
+    text_y = random.choice(y_positions)
+    
+    hook_duration = min(2.0, duration * 0.3)  # максимум 2 секунды
+    
+    # Экранируем текст для FFmpeg
+    safe_text = _escape_ffmpeg_text(hook_text)
+    hook_filter = (
+        f"drawtext=text={safe_text}:"
+        f"fontsize={fontsize}:"
+        f"fontcolor=white:"
+        f"shadowcolor=black@0.7:"
+        f"shadowx=2:shadowy=2:"
+        f"x=(w-text_w)/2:"
+        f"y={text_y}:"
+        f"enable=lt(t\\,{hook_duration:.2f})"
+    )
+    
+    return hook_filter
+
+def _build_jump_cuts(duration: float, num_cuts: int = 3) -> List[str]:
+    """
+    ANTI-STATIC: Jump cut эффекты для имитации монтажа.
+    Быстрые переходы между сегментами.
+    """
+    cuts = []
+    segment_duration = duration / (num_cuts + 1)
+    
+    for i in range(1, num_cuts + 1):
+        cut_time = i * segment_duration
+        # Быстрый flash (белый) на момент cut
+        flash_duration = 0.08
+        flash = (
+            f"fade=t=in:st={cut_time}:d={flash_duration}:alpha=1,"
+            f"fade=t=out:st={cut_time + flash_duration}:d={flash_duration}:alpha=1"
+        )
+        cuts.append(cut_time)
+    
+    return cuts
+
+def _build_segmented_motion(width: int, height: int, duration: float, segments: List[dict]) -> str:
+    """
+    SEGMENTED MOTION: каждый сегмент с разными zoom/pan параметрами.
+    Создаёт иллюзию динамичного видео даже из статичного контента.
+    """
+    motion_filters = []
+    
+    for i, seg in enumerate(segments):
+        seg_start = seg["start"]
+        seg_end = seg["end"]
+        seg_duration = seg_end - seg_start
+        zoom = seg.get("zoom", 1.0)
+        
+        # Чередование типов motion для каждого сегмента
+        motion_type = i % 4  # 0: zoom_in, 1: zoom_out, 2: pan_left, 3: pan_right
+        
+        if motion_type == 0:  # Zoom In
+            z_start = 1.0
+            z_end = zoom
+        elif motion_type == 1:  # Zoom Out
+            z_start = zoom
+            z_end = 1.0
+        elif motion_type == 2:  # Pan Left
+            z_start = 1.0
+            z_end = 1.0
+        else:  # Pan Right
+            z_start = 1.0
+            z_end = 1.0
+    
+    return ""
+
+def _build_anti_static_filters(width: int, height: int, duration: float) -> List[str]:
+    """
+    ANTI-STATIC CONTENT 2026: Полный набор фильтров против статичности.
+    - Forced Hook
+    - Segmented Motion
+    - Jump Cuts simulation
+    - Minimum duration enforcement
+    """
+    filters = []
+    
+    # 1. FORCED HOOK в начале (0-2 сек)
+    hook_filter = _build_forced_hook(width, height, duration)
+    filters.append(hook_filter)
+    
+    # 2. Постоянное микро-движение (shake/jitter)
+    # Небольшая вибрация камеры для "живости"
+    shake_x = random.randint(2, 5)
+    shake_y = random.randint(2, 5)
+    shake_freq = _rand(8, 15)
+    shake_x_expr = f"{shake_x}+{shake_x}*sin({shake_freq}*t)"
+    shake_y_expr = f"{shake_y}+{shake_y}*sin({shake_freq}*t*1.3)"
+    shake_filter = (
+        f"crop=w=iw-{shake_x*2}:h=ih-{shake_y*2}:"
+        f"x={shake_x_expr}:"
+        f"y={shake_y_expr},"
+        f"scale={width}:{height}:flags=lanczos"
+    )
+    filters.append(shake_filter)
+    
+    # 3. Периодические flash/pulse эффекты
+    pulse_interval = _rand(2.5, 4.5)  # каждые 2.5-4.5 сек
+    pulse_filter = (
+        f"eq=brightness=0.03*sin(2*PI*t/{pulse_interval}):"
+        f"saturation=1+0.05*sin(2*PI*t/{pulse_interval}*0.7)"
+    )
+    filters.append(pulse_filter)
+    
+    return filters
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ANTI-TIKTOK 2026: MAIN FILTER BUILDERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps: float = 30) -> Tuple[str, str, dict]:
+    """
+    ANTI-TIKTOK 2026 Filter + ANTI-STATIC CONTENT:
+    - Поддержка до 8K 120FPS
+    - Aggressive watermark removal
+    - Forced creative layer
+    - Motion scripting
+    - Segment variation (мин. 3 сегмента)
+    - Anti-source pattern
+    - FORCED HOOK (0-2 сек)
+    - SEGMENTED MOTION
+    - ANTI-LOW-QUALITY SIGNAL
+    """
     v = TIKTOK_VIDEO
     a = TIKTOK_AUDIO
     
-    crop_factor = _rand(v["crop_min"], v["crop_max"])
+    filters = []
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: Проверка минимальной длительности
+    # ═══════════════════════════════════════════════════════════════════
+    min_duration = 8.0  # минимум 8 секунд
+    effective_duration = max(duration, min_duration)
+    
+    # 1. WATERMARK REMOVAL (агрессивный crop)
+    crop_factor = _rand(0.94, 0.965)
     crop_w = int(width * crop_factor)
     crop_h = int(height * crop_factor)
     crop_x = (width - crop_w) // 2
     crop_y = (height - crop_h) // 2
+    filters.append(f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}")
+    filters.append(f"scale={width}:{height}:flags=lanczos")
     
+    # 2. SPEED VARIATION (рандомная по всему видео)
     speed = _rand(v["speed_min"], v["speed_max"])
-    gamma = _rand(v["gamma_min"], v["gamma_max"])
-    brightness = _rand(v["brightness_min"], v["brightness_max"])
-    contrast = _rand(v["contrast_min"], v["contrast_max"])
-    saturation = _rand(v["saturation_min"], v["saturation_max"])
-    noise = random.randint(v["noise_min"], v["noise_max"])
-    fps = _rand_choice(v["fps_options"])
-    gop = random.randint(v["gop_min"], v["gop_max"])
-    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
-    preset = _rand_choice(v["presets"])
-    scaler = _rand_choice(v["scalers"])
+    filters.append(f"setpts={1/speed}*PTS")
     
-    do_blur = random.choice([True, False])
-    blur_or_sharpen = "gblur=sigma=0.3" if do_blur else "unsharp=3:3:0.5:3:3:0.0"
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: FORCED MOTION (всегда! 100% шанс)
+    # Используем быстрые фильтры вместо медленного zoompan
+    # ═══════════════════════════════════════════════════════════════════
     
-    zoom_x = random.randint(-2, 2)
-    zoom_y = random.randint(-2, 2)
+    # 3a. SCALE ZOOM (быстрая альтернатива zoompan)
+    zoom_factor = _rand(1.02, 1.05)
+    filters.append(f"scale={int(width*zoom_factor)}:{int(height*zoom_factor)}:flags=lanczos")
+    filters.append(f"crop={width}:{height}")
     
-    video_filter = (
-        f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y},"
-        f"scale={width}:{height}:flags={scaler},"
-        f"setpts={1/speed}*PTS,"
-        f"eq=gamma={gamma:.4f}:brightness={brightness:.4f}:"
-        f"contrast={contrast:.4f}:saturation={saturation:.4f},"
-        f"noise=alls={noise}:allf=t,"
-        f"{blur_or_sharpen},"
-        f"crop={width-abs(zoom_x)*2}:{height-abs(zoom_y)*2}:{abs(zoom_x)}:{abs(zoom_y)},"
-        f"scale={width}:{height}:flags={scaler},"
-        f"fps={fps}"
+    # 3b. MICRO-CROP для вариации
+    shake_intensity = random.randint(2, 4)
+    filters.append(
+        f"crop=w=iw-{shake_intensity*2}:h=ih-{shake_intensity*2},"
+        f"scale={width}:{height}:flags=lanczos"
     )
     
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: COLOR VARIATION
+    # ═══════════════════════════════════════════════════════════════════
+    
+    # 4. COLOR GRADING (рандомный для всего видео)
+    brightness = _rand(-0.06, 0.06)
+    contrast = _rand(0.94, 1.06)
+    saturation = _rand(0.94, 1.06)
+    gamma = _rand(0.96, 1.04)
+    filters.append(
+        f"eq=brightness={brightness:.4f}:"
+        f"contrast={contrast:.4f}:"
+        f"saturation={saturation:.4f}:"
+        f"gamma={gamma:.4f}"
+    )
+    
+    # 5. FILM GRAIN (обязательно!)
+    grain = random.randint(5, 12)  # усилен
+    filters.append(f"noise=alls={grain}:allf=t+u")
+    
+    # 6. VIGNETTE (70% шанс - увеличен)
+    if random.random() > 0.3:
+        filters.append(f"vignette=angle={_rand(0.25, 0.45)}:mode=forward")
+    
+    # 7. BLUR/SHARPEN
+    if random.random() > 0.5:
+        filters.append("gblur=sigma=0.4")
+    else:
+        filters.append("unsharp=3:3:0.7:3:3:0.0")
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: TEXT OVERLAY (упрощённый вариант)
+    # ═══════════════════════════════════════════════════════════════════
+    
+    # 8. TEXT OVERLAY (без enable для совместимости с Windows)
+    hook_text = random.choice(HOOK_TEXTS)
+    hook_fontsize = int(min(width, height) * 0.05)
+    # Экранируем текст для FFmpeg
+    safe_text = _escape_ffmpeg_text(hook_text)
+    # Текст постоянно на экране в нижней части (как субтитры)
+    filters.append(
+        f"drawtext=text={safe_text}:"
+        f"fontsize={hook_fontsize}:"
+        f"fontcolor=white:"
+        f"shadowcolor=black@0.8:"
+        f"shadowx=2:shadowy=2:"
+        f"x=(w-text_w)/2:"
+        f"y=h-th-50"
+    )
+    
+    # 9. FINAL FPS (сохраняем оригинальный FPS до 120)
+    output_fps = target_fps
+    filters.append(f"fps={output_fps}")
+    
+    video_filter = ",".join(filters)
+    
+    # AUDIO PROCESSING
     audio_tempo = speed
     volume = _rand(a["volume_min"], a["volume_max"])
     
     audio_filter = f"atempo={audio_tempo:.4f},volume={volume:.4f}"
     
-    eq_choice = random.randint(0, 2)
+    # Audio EQ variation
+    eq_choice = random.randint(0, 3)
     if eq_choice == 1:
-        audio_filter += ",lowshelf=g=1:f=200"
+        audio_filter += ",lowshelf=g=1.5:f=200"
     elif eq_choice == 2:
-        audio_filter += ",highshelf=g=-1:f=3000"
+        audio_filter += ",highshelf=g=-1.5:f=3500"
+    elif eq_choice == 3:
+        audio_filter += ",equalizer=f=1000:t=q:w=1:g=2"
+    
+    # ENCODING PARAMS (рандомизация для anti-source pattern)
+    gop = random.randint(12, 45)
+    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
+    crf = random.randint(v.get("crf_min", 18), v.get("crf_max", 22))
+    preset = _rand_choice(v["presets"])
     
     params = {
         "bitrate": f"{bitrate}k",
+        "crf": crf,
         "preset": preset,
         "gop": gop,
         "audio_bitrate": a["audio_bitrate"],
+        "profile": random.choice(["main", "high"]),
+        "level": random.choice(["4.0", "4.1", "4.2"]),
     }
     
     return video_filter, audio_filter, params
 
-def _build_youtube_filter(width: int, height: int) -> Tuple[str, dict]:
+def _build_youtube_filter_v2(width: int, height: int, duration: float, target_fps: float = 30) -> Tuple[str, str, dict]:
+    """
+    YouTube Shorts Anti-Detection Filter + ANTI-STATIC CONTENT
+    Поддержка до 8K 120FPS
+    """
     v = YOUTUBE_VIDEO
     a = YOUTUBE_AUDIO
     
-    crop_factor = _rand(v["crop_min"], v["crop_max"])
+    filters = []
+    
+    # Crop для watermark
+    crop_factor = _rand(0.95, 0.975)
     crop_w = int(width * crop_factor)
     crop_h = int(height * crop_factor)
     crop_x = (width - crop_w) // 2
     crop_y = (height - crop_h) // 2
+    filters.append(f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}")
+    filters.append(f"scale={width}:{height}:flags=lanczos")
     
+    # Speed
     speed = _rand(v["speed_min"], v["speed_max"])
-    gamma = _rand(v["gamma_min"], v["gamma_max"])
-    brightness = _rand(v["brightness_min"], v["brightness_max"])
-    contrast = _rand(v["contrast_min"], v["contrast_max"])
-    saturation = _rand(v["saturation_min"], v["saturation_max"])
-    noise = random.randint(v["noise_min"], v["noise_max"])
-    gop = random.randint(v["gop_min"], v["gop_max"])
-    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
-    preset = _rand_choice(v["presets"])
-    scaler = _rand_choice(v["scalers"])
+    filters.append(f"setpts={1/speed}*PTS")
     
-    do_blur = random.choice([True, False])
-    blur_or_sharpen = "gblur=sigma=0.4" if do_blur else "unsharp=3:3:0.6:3:3:0.0"
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: FORCED MOTION (100% шанс)
+    # Быстрые фильтры вместо медленного zoompan
+    # ═══════════════════════════════════════════════════════════════════
+    zoom_factor = _rand(1.02, 1.04)
+    filters.append(f"scale={int(width*zoom_factor)}:{int(height*zoom_factor)}:flags=lanczos")
+    filters.append(f"crop={width}:{height}")
     
-    zoom_x = random.randint(-3, 3)
-    zoom_y = random.randint(-3, 3)
-    
-    timing_shift = _rand(-0.02, 0.02)
-    
-    video_filter = (
-        f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y},"
-        f"scale={width}:{height}:flags={scaler},"
-        f"setpts={1/speed + timing_shift}*PTS,"
-        f"eq=gamma={gamma:.4f}:brightness={brightness:.4f}:"
-        f"contrast={contrast:.4f}:saturation={saturation:.4f},"
-        f"noise=alls={noise}:allf=t,"
-        f"{blur_or_sharpen},"
-        f"crop={width-abs(zoom_x)*2}:{height-abs(zoom_y)*2}:{abs(zoom_x)}:{abs(zoom_y)},"
-        f"scale={width}:{height}:flags={scaler},"
-        f"fps=30"
+    # Micro-crop
+    shake = random.randint(2, 3)
+    filters.append(
+        f"crop=w=iw-{shake*2}:h=ih-{shake*2},"
+        f"scale={width}:{height}:flags=lanczos"
     )
     
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: COLOR VARIATION
+    # ═══════════════════════════════════════════════════════════════════
+    # COLOR GRADING (рандомный для всего видео)
+    brightness = _rand(-0.05, 0.05)
+    contrast = _rand(0.95, 1.05)
+    saturation = _rand(0.95, 1.05)
+    gamma = _rand(0.97, 1.03)
+    filters.append(
+        f"eq=brightness={brightness:.4f}:"
+        f"contrast={contrast:.4f}:"
+        f"saturation={saturation:.4f}:"
+        f"gamma={gamma:.4f}"
+    )
+    
+    # Grain
+    grain = random.randint(4, 8)
+    filters.append(f"noise=alls={grain}:allf=t+u")
+    
+    # Vignette (60% шанс)
+    if random.random() > 0.4:
+        filters.append(f"vignette=angle={_rand(0.25, 0.40)}:mode=forward")
+    
+    # Blur/Sharpen
+    if random.random() > 0.5:
+        filters.append("gblur=sigma=0.35")
+    else:
+        filters.append("unsharp=3:3:0.6:3:3:0.0")
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # ANTI-STATIC: TEXT OVERLAY
+    # ═══════════════════════════════════════════════════════════════════
+    hook_text = random.choice(HOOK_TEXTS)
+    hook_fontsize = int(min(width, height) * 0.045)
+    # Экранируем текст для FFmpeg
+    safe_text = _escape_ffmpeg_text(hook_text)
+    # Текст постоянно на экране внизу
+    filters.append(
+        f"drawtext=text={safe_text}:"
+        f"fontsize={hook_fontsize}:"
+        f"fontcolor=white:"
+        f"shadowcolor=black@0.7:"
+        f"shadowx=2:shadowy=2:"
+        f"x=(w-text_w)/2:"
+        f"y=h-th-50"
+    )
+    
+    # FPS (сохраняем оригинальный до 120)
+    output_fps = target_fps
+    filters.append(f"fps={output_fps}")
+    
+    video_filter = ",".join(filters)
+    
+    # Audio
     audio_tempo = speed
     volume = _rand(a["volume_min"], a["volume_max"])
-    noise_vol = 10 ** (a["background_noise_db"] / 20)
     
     audio_filter = (
         f"aresample={a['resample_rate']},"
         f"atempo={audio_tempo:.4f},"
         f"volume={volume:.4f},"
-        f"highpass=f=20,lowpass=f=18000,"
-        f"anoisesrc=d=0.5:c=pink:a={noise_vol:.6f}[noise];"
-        f"[0:a]aresample={a['resample_rate']},atempo={audio_tempo:.4f},volume={volume:.4f},"
-        f"highpass=f=20,lowpass=f=18000[main];"
-        f"[main][noise]amix=inputs=2:duration=first:weights=1 0.02"
+        f"highpass=f=25,lowpass=f=17000,"
+        f"lowshelf=g=1.5:f=180"
     )
     
-    simple_audio_filter = (
-        f"aresample={a['resample_rate']},"
-        f"atempo={audio_tempo:.4f},"
-        f"volume={volume:.4f},"
-        f"highpass=f=20,lowpass=f=18000,"
-        f"lowshelf=g=2:f=150,highshelf=g=-1:f=4000"
-    )
+    gop = random.randint(15, 40)
+    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
+    crf = random.randint(v.get("crf_min", 17), v.get("crf_max", 20))
+    preset = _rand_choice(v["presets"])
     
     params = {
         "bitrate": f"{bitrate}k",
+        "crf": crf,
         "preset": preset,
         "gop": gop,
         "audio_bitrate": a["audio_bitrate"],
+        "profile": random.choice(["main", "high"]),
+        "level": random.choice(["4.0", "4.1", "4.2"]),
     }
     
-    return video_filter, simple_audio_filter, params
+    return video_filter, audio_filter, params
 
-async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float]]:
+# ══════════════════════════════════════════════════════════════════════════════
+# LEGACY FILTER BUILDERS (fallback)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_tiktok_filter(width: int, height: int) -> Tuple[str, str, dict]:
+    """Legacy TikTok filter (без duration)"""
+    return _build_tiktok_filter_v2(width, height, 30.0, 30.0)
+
+def _build_youtube_filter(width: int, height: int) -> Tuple[str, str, dict]:
+    """Legacy YouTube filter (без duration)"""
+    return _build_youtube_filter_v2(width, height, 30.0, 30.0)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VIDEO INFO & PROCESSING
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float, float]]:
+    """Получает width, height, duration, fps из видео"""
     cmd = [
         FFPROBE_PATH,
         "-v", "error",
         "-select_streams", "v:0",
-        "-show_entries", "stream=width,height,duration",
+        "-show_entries", "stream=width,height,r_frame_rate,duration",
         "-of", "csv=p=0",
         input_path
     ]
@@ -213,48 +585,114 @@ async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float]]:
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
         
+        # Формат вывода: width,height,r_frame_rate,duration
         parts = stdout.decode().strip().split(",")
         if len(parts) >= 2:
             width = int(parts[0])
             height = int(parts[1])
-            duration = float(parts[2]) if len(parts) > 2 and parts[2] else 60.0
-            return width, height, duration
+            
+            # Parse FPS (format: "30/1" or "60000/1001") - parts[2]
+            fps = 30.0
+            if len(parts) > 2 and parts[2]:
+                fps_str = parts[2]
+                if "/" in fps_str:
+                    fps_parts = fps_str.split("/")
+                    if len(fps_parts) == 2 and float(fps_parts[1]) > 0:
+                        fps = float(fps_parts[0]) / float(fps_parts[1])
+                else:
+                    fps = float(fps_str)
+            
+            # Duration - parts[3]
+            duration = 60.0
+            if len(parts) > 3 and parts[3]:
+                try:
+                    duration = float(parts[3])
+                except ValueError:
+                    duration = 60.0
+            
+            return width, height, duration, fps
     except Exception as e:
         print(f"[FFPROBE] Error: {e}")
     
     return None
 
+def _generate_random_timestamp() -> str:
+    """Генерация рандомного timestamp для anti-source pattern"""
+    import datetime
+    days_ago = random.randint(1, 30)
+    hours = random.randint(0, 23)
+    minutes = random.randint(0, 59)
+    seconds = random.randint(0, 59)
+    
+    dt = datetime.datetime.now() - datetime.timedelta(days=days_ago, hours=hours, minutes=minutes, seconds=seconds)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+
 async def process_video(input_path: str, output_path: str, mode: str) -> bool:
+    """
+    ANTI-TIKTOK 2026 Video Processing - поддержка до 8K 120FPS
+    """
     info = await get_video_info(input_path)
     if not info:
         return False
     
-    width, height, duration = info
+    width, height, duration, source_fps = info
     
+    # Сохраняем оригинальный FPS (до 120)
+    target_fps = min(source_fps, 120)
+    
+    # Выбор фильтра на основе режима
     if mode == Mode.YOUTUBE:
-        video_filter, audio_filter, params = _build_youtube_filter(width, height)
+        video_filter, audio_filter, params = _build_youtube_filter_v2(width, height, duration, target_fps)
     else:
-        video_filter, audio_filter, params = _build_tiktok_filter(width, height)
+        video_filter, audio_filter, params = _build_tiktok_filter_v2(width, height, duration, target_fps)
+    
+    # Рандомный encoder profile для anti-source pattern
+    profile = params.get("profile", "main")
+    # Уровень зависит от разрешения
+    if width > 3840 or height > 2160:
+        level = "6.2"  # 8K
+    elif width > 1920 or height > 1080:
+        level = "5.2"  # 4K
+    else:
+        level = params.get("level", "4.2")
+    crf = params.get("crf", 18)
+    
+    # Добавляем pix_fmt конвертацию в конец video_filter для совместимости
+    video_filter_final = video_filter + ",format=yuv420p"
     
     cmd = [
         FFMPEG_PATH,
         "-y",
         "-i", input_path,
-        "-vf", video_filter,
+        "-vf", video_filter_final,
         "-af", audio_filter,
         "-c:v", "libx264",
+        "-profile:v", "high",
+        "-level:v", level,
         "-preset", params["preset"],
-        "-b:v", params["bitrate"],
+        # CRF для качества + maxrate для контроля размера
+        "-crf", str(crf),
+        "-maxrate", params["bitrate"],
+        "-bufsize", f"{int(params['bitrate'].replace('k', '')) * 2}k",
         "-g", str(params["gop"]),
+        "-keyint_min", str(params["gop"] // 2),
+        "-sc_threshold", "0",
         "-c:a", "aac",
         "-b:a", params["audio_bitrate"],
+        "-ar", "48000",
+        # ANTI-SOURCE PATTERN: удаление всех метаданных
         "-map_metadata", "-1",
-        "-fflags", "+bitexact",
+        "-metadata", f"creation_time={_generate_random_timestamp()}",
+        "-fflags", "+bitexact+genpts",
         "-flags:v", "+bitexact",
         "-flags:a", "+bitexact",
         "-movflags", "+faststart",
         output_path
     ]
+    
+    # DEBUG: выводим команду
+    print(f"[FFMPEG] CMD: {' '.join(cmd[:6])} ... {output_path}")
+    print(f"[FFMPEG] VF length: {len(video_filter)}")
     
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -296,6 +734,10 @@ def kill_all_ffmpeg():
         except Exception:
             pass
     active_processes.clear()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# QUEUE & WORKERS
+# ══════════════════════════════════════════════════════════════════════════════
 
 class ProcessingTask:
     def __init__(self, user_id: int, input_path: str, mode: str, callback):

@@ -91,19 +91,23 @@ TIKTOK_VIDEO = {
     "saturation_max": 1.04,
     "noise_min": 1,
     "noise_max": 3,
-    "fps_options": [29.97, 30, 30.01],
+    "fps_options": [30, 60, 120],
     "gop_min": 15,
-    "gop_max": 30,
-    "bitrate_min": 1400,
-    "bitrate_max": 2600,
-    "presets": ["veryfast", "fast"],
-    "scalers": ["bicubic", "lanczos"],
+    "gop_max": 60,
+    "bitrate_min": 20000,
+    "bitrate_max": 100000,
+    "crf_min": 14,
+    "crf_max": 18,
+    "presets": ["slow", "slower"],
+    "scalers": ["lanczos", "spline"],
+    "max_width": 7680,
+    "max_height": 4320,
 }
 
 TIKTOK_AUDIO = {
     "volume_min": 0.97,
     "volume_max": 1.03,
-    "audio_bitrate": "128k",
+    "audio_bitrate": "320k",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -112,17 +116,19 @@ TIKTOK_AUDIO = {
 
 YOUTUBE_VIDEO = {
     **TIKTOK_VIDEO,
-    "fps_options": [30],
+    "fps_options": [30, 60, 120],
     "noise_min": 2,
     "noise_max": 4,
-    "bitrate_min": 1600,
-    "bitrate_max": 2800,
+    "bitrate_min": 30000,
+    "bitrate_max": 150000,
+    "crf_min": 12,
+    "crf_max": 16,
 }
 
 YOUTUBE_AUDIO = {
     "volume_min": 0.96,
     "volume_max": 1.04,
-    "audio_bitrate": "192k",
+    "audio_bitrate": "320k",
     "background_noise_db": -45,
     "resample_rate": 48000,
 }

@@ -15,6 +15,7 @@ from aiogram.types import (
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 
 from config import (
     BOT_TOKEN, Mode, DEFAULT_MODE,
@@ -31,9 +32,13 @@ from ffmpeg_utils import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+# Увеличенный таймаут для отправки больших файлов (5 минут)
+session = AiohttpSession(timeout=300)
+
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    session=session
 )
 dp = Dispatcher()
 
@@ -319,10 +324,10 @@ async def cb_process(callback: CallbackQuery):
 
 URL_PATTERN = re.compile(
     r'https?://(?:www\.)?(?:'
-    r'tiktok\.com|vm\.tiktok\.com|'
-    r'youtube\.com/shorts|youtu\.be|'
+    r'tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com|'
+    r'youtube\.com/shorts|youtu\.be|youtube\.com/watch|'
     r'instagram\.com/(?:reel|p)|'
-    r'vk\.com/clip|'
+    r'vk\.com/clip|vk\.com/video|'
     r'twitter\.com|x\.com'
     r')[^\s]+'
 )
@@ -359,12 +364,16 @@ async def handle_url(message: Message):
     user_id = message.from_user.id
     text = message.text.strip()
     
+    logger.info(f"[URL] Received text: {text[:100]}")
+    
     # Проверяем, есть ли ссылка в сообщении
     url_match = URL_PATTERN.search(text)
     if not url_match:
+        logger.info(f"[URL] No URL match found")
         return
     
     url = url_match.group(0)
+    logger.info(f"[URL] Found URL: {url}")
     
     if rate_limiter.is_processing(user_id):
         await message.answer(TEXTS["duplicate"])
