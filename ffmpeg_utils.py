@@ -7,6 +7,7 @@ import asyncio
 import subprocess
 import tempfile
 import uuid
+import time
 from pathlib import Path
 from typing import Optional, Tuple, List
 from config import (
@@ -18,6 +19,7 @@ from config import (
     MAX_QUEUE_SIZE,
     FFMPEG_PATH,
     FFPROBE_PATH,
+    Quality, QUALITY_SETTINGS, DEFAULT_QUALITY,
 )
 
 processing_queue: asyncio.Queue = None
@@ -83,7 +85,7 @@ HOOK_TEXTS = [
 
 def init_queue():
     global processing_queue
-    processing_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
+    processing_queue = asyncio.PriorityQueue(maxsize=MAX_QUEUE_SIZE)
 
 def get_temp_dir() -> Path:
     temp_dir = Path(tempfile.gettempdir()) / "virex"
@@ -101,16 +103,53 @@ def cleanup_file(filepath: str):
         print(f"[CLEANUP] Failed to remove {filepath}: {e}")
 
 def cleanup_old_files(max_age_seconds: int = 3600):
+    """
+    Очистка старых временных файлов.
+    По умолчанию удаляет файлы старше 1 часа.
+    """
     temp_dir = get_temp_dir()
     import time
     now = time.time()
+    deleted = 0
     
+    # Очистка virex_ файлов
     for f in temp_dir.glob("virex_*"):
         try:
             if now - f.stat().st_mtime > max_age_seconds:
                 f.unlink()
+                deleted += 1
         except Exception:
             pass
+    
+    # Очистка любых mp4/webm файлов старше времени
+    for ext in ["*.mp4", "*.webm", "*.mkv", "*.avi", "*.mov"]:
+        for f in temp_dir.glob(ext):
+            try:
+                if now - f.stat().st_mtime > max_age_seconds:
+                    f.unlink()
+                    deleted += 1
+            except Exception:
+                pass
+    
+    if deleted > 0:
+        print(f"[CLEANUP] Removed {deleted} old files")
+    
+    return deleted
+
+def get_temp_dir_size() -> tuple:
+    """
+    Получить размер temp папки в МБ и количество файлов.
+    """
+    temp_dir = get_temp_dir()
+    total_size = 0
+    file_count = 0
+    
+    for f in temp_dir.iterdir():
+        if f.is_file():
+            total_size += f.stat().st_size
+            file_count += 1
+    
+    return round(total_size / (1024 * 1024), 2), file_count
 
 def _rand(min_val: float, max_val: float) -> float:
     return random.uniform(min_val, max_val)
@@ -287,7 +326,8 @@ def _build_anti_static_filters(width: int, height: int, duration: float) -> List
 # ANTI-TIKTOK 2026: MAIN FILTER BUILDERS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps: float = 30) -> Tuple[str, str, dict]:
+def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps: float = 30, 
+                              quality: str = DEFAULT_QUALITY, text_overlay: bool = True) -> Tuple[str, str, dict]:
     """
     ANTI-TIKTOK 2026 Filter + ANTI-STATIC CONTENT:
     - Поддержка до 8K 120FPS
@@ -296,12 +336,14 @@ def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps
     - Motion scripting
     - Segment variation (мин. 3 сегмента)
     - Anti-source pattern
-    - FORCED HOOK (0-2 сек)
+    - FORCED HOOK (0-2 сек) - опционально
     - SEGMENTED MOTION
     - ANTI-LOW-QUALITY SIGNAL
+    - Поддержка пресетов качества
     """
     v = TIKTOK_VIDEO
     a = TIKTOK_AUDIO
+    q_settings = QUALITY_SETTINGS.get(quality, QUALITY_SETTINGS[Quality.MAX])
     
     filters = []
     
@@ -375,21 +417,22 @@ def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps
     # ANTI-STATIC: TEXT OVERLAY (упрощённый вариант)
     # ═══════════════════════════════════════════════════════════════════
     
-    # 8. TEXT OVERLAY (без enable для совместимости с Windows)
-    hook_text = random.choice(HOOK_TEXTS)
-    hook_fontsize = int(min(width, height) * 0.05)
-    # Экранируем текст для FFmpeg
-    safe_text = _escape_ffmpeg_text(hook_text)
-    # Текст постоянно на экране в нижней части (как субтитры)
-    filters.append(
-        f"drawtext=text={safe_text}:"
-        f"fontsize={hook_fontsize}:"
-        f"fontcolor=white:"
-        f"shadowcolor=black@0.8:"
-        f"shadowx=2:shadowy=2:"
-        f"x=(w-text_w)/2:"
-        f"y=h-th-50"
-    )
+    # 8. TEXT OVERLAY (только если включено)
+    if text_overlay:
+        hook_text = random.choice(HOOK_TEXTS)
+        hook_fontsize = int(min(width, height) * 0.05)
+        # Экранируем текст для FFmpeg
+        safe_text = _escape_ffmpeg_text(hook_text)
+        # Текст постоянно на экране в нижней части (как субтитры)
+        filters.append(
+            f"drawtext=text={safe_text}:"
+            f"fontsize={hook_fontsize}:"
+            f"fontcolor=white:"
+            f"shadowcolor=black@0.8:"
+            f"shadowx=2:shadowy=2:"
+            f"x=(w-text_w)/2:"
+            f"y=h-th-50"
+        )
     
     # 9. FINAL FPS (сохраняем оригинальный FPS до 120)
     output_fps = target_fps
@@ -412,11 +455,13 @@ def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps
     elif eq_choice == 3:
         audio_filter += ",equalizer=f=1000:t=q:w=1:g=2"
     
-    # ENCODING PARAMS (рандомизация для anti-source pattern)
+    # ENCODING PARAMS (рандомизация для anti-source pattern + quality preset)
     gop = random.randint(12, 45)
-    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
-    crf = random.randint(v.get("crf_min", 18), v.get("crf_max", 22))
-    preset = _rand_choice(v["presets"])
+    base_bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
+    bitrate = int(base_bitrate * q_settings["bitrate_mult"])
+    base_crf = random.randint(v.get("crf_min", 18), v.get("crf_max", 22))
+    crf = base_crf + q_settings["crf_offset"]
+    preset = q_settings["preset"] if q_settings["preset"] else _rand_choice(v["presets"])
     
     params = {
         "bitrate": f"{bitrate}k",
@@ -430,13 +475,15 @@ def _build_tiktok_filter_v2(width: int, height: int, duration: float, target_fps
     
     return video_filter, audio_filter, params
 
-def _build_youtube_filter_v2(width: int, height: int, duration: float, target_fps: float = 30) -> Tuple[str, str, dict]:
+def _build_youtube_filter_v2(width: int, height: int, duration: float, target_fps: float = 30,
+                               quality: str = DEFAULT_QUALITY, text_overlay: bool = True) -> Tuple[str, str, dict]:
     """
     YouTube Shorts Anti-Detection Filter + ANTI-STATIC CONTENT
-    Поддержка до 8K 120FPS
+    Поддержка до 8K 120FPS + пресеты качества
     """
     v = YOUTUBE_VIDEO
     a = YOUTUBE_AUDIO
+    q_settings = QUALITY_SETTINGS.get(quality, QUALITY_SETTINGS[Quality.MAX])
     
     filters = []
     
@@ -500,20 +547,21 @@ def _build_youtube_filter_v2(width: int, height: int, duration: float, target_fp
     # ═══════════════════════════════════════════════════════════════════
     # ANTI-STATIC: TEXT OVERLAY
     # ═══════════════════════════════════════════════════════════════════
-    hook_text = random.choice(HOOK_TEXTS)
-    hook_fontsize = int(min(width, height) * 0.045)
-    # Экранируем текст для FFmpeg
-    safe_text = _escape_ffmpeg_text(hook_text)
-    # Текст постоянно на экране внизу
-    filters.append(
-        f"drawtext=text={safe_text}:"
-        f"fontsize={hook_fontsize}:"
-        f"fontcolor=white:"
-        f"shadowcolor=black@0.7:"
-        f"shadowx=2:shadowy=2:"
-        f"x=(w-text_w)/2:"
-        f"y=h-th-50"
-    )
+    if text_overlay:
+        hook_text = random.choice(HOOK_TEXTS)
+        hook_fontsize = int(min(width, height) * 0.045)
+        # Экранируем текст для FFmpeg
+        safe_text = _escape_ffmpeg_text(hook_text)
+        # Текст постоянно на экране внизу
+        filters.append(
+            f"drawtext=text={safe_text}:"
+            f"fontsize={hook_fontsize}:"
+            f"fontcolor=white:"
+            f"shadowcolor=black@0.7:"
+            f"shadowx=2:shadowy=2:"
+            f"x=(w-text_w)/2:"
+            f"y=h-th-50"
+        )
     
     # FPS (сохраняем оригинальный до 120)
     output_fps = target_fps
@@ -534,9 +582,11 @@ def _build_youtube_filter_v2(width: int, height: int, duration: float, target_fp
     )
     
     gop = random.randint(15, 40)
-    bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
-    crf = random.randint(v.get("crf_min", 17), v.get("crf_max", 20))
-    preset = _rand_choice(v["presets"])
+    base_bitrate = random.randint(v["bitrate_min"], v["bitrate_max"])
+    bitrate = int(base_bitrate * q_settings["bitrate_mult"])
+    base_crf = random.randint(v.get("crf_min", 17), v.get("crf_max", 20))
+    crf = base_crf + q_settings["crf_offset"]
+    preset = q_settings["preset"] if q_settings["preset"] else _rand_choice(v["presets"])
     
     params = {
         "bitrate": f"{bitrate}k",
@@ -627,9 +677,11 @@ def _generate_random_timestamp() -> str:
     dt = datetime.datetime.now() - datetime.timedelta(days=days_ago, hours=hours, minutes=minutes, seconds=seconds)
     return dt.strftime("%Y-%m-%dT%H:%M:%S.000000Z")
 
-async def process_video(input_path: str, output_path: str, mode: str) -> bool:
+async def process_video(input_path: str, output_path: str, mode: str, 
+                        quality: str = DEFAULT_QUALITY, text_overlay: bool = True) -> bool:
     """
     ANTI-TIKTOK 2026 Video Processing - поддержка до 8K 120FPS
+    + пресеты качества и опциональный текст
     """
     info = await get_video_info(input_path)
     if not info:
@@ -642,9 +694,13 @@ async def process_video(input_path: str, output_path: str, mode: str) -> bool:
     
     # Выбор фильтра на основе режима
     if mode == Mode.YOUTUBE:
-        video_filter, audio_filter, params = _build_youtube_filter_v2(width, height, duration, target_fps)
+        video_filter, audio_filter, params = _build_youtube_filter_v2(
+            width, height, duration, target_fps, quality, text_overlay
+        )
     else:
-        video_filter, audio_filter, params = _build_tiktok_filter_v2(width, height, duration, target_fps)
+        video_filter, audio_filter, params = _build_tiktok_filter_v2(
+            width, height, duration, target_fps, quality, text_overlay
+        )
     
     # Рандомный encoder profile для anti-source pattern
     profile = params.get("profile", "main")
@@ -740,26 +796,59 @@ def kill_all_ffmpeg():
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ProcessingTask:
-    def __init__(self, user_id: int, input_path: str, mode: str, callback):
+    def __init__(self, user_id: int, input_path: str, mode: str, callback, 
+                 quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
+                 priority: int = 0):
         self.user_id = user_id
         self.input_path = input_path
         self.mode = mode
         self.callback = callback
+        self.quality = quality
+        self.text_overlay = text_overlay
         self.output_path = str(get_temp_dir() / generate_unique_filename())
+        self.priority = priority  # 0=free, 1=vip, 2=premium
+        self.cancelled = False
+        self.task_id = f"{user_id}_{int(time.time()*1000)}"
+    
+    def __lt__(self, other):
+        # Для PriorityQueue — больший приоритет = раньше в очереди
+        return self.priority > other.priority
+
+# Словарь активных задач для возможности отмены
+active_tasks: dict = {}
 
 async def worker():
     while True:
-        task: ProcessingTask = await processing_queue.get()
+        # Получаем задачу с учётом приоритета
+        priority, task = await processing_queue.get()
+        task: ProcessingTask
+        
+        # Проверяем отмену
+        if task.cancelled:
+            cleanup_file(task.input_path)
+            processing_queue.task_done()
+            active_tasks.pop(task.task_id, None)
+            continue
         
         try:
-            success = await process_video(task.input_path, task.output_path, task.mode)
-            await task.callback(success, task.output_path if success else None)
+            success = await process_video(
+                task.input_path, task.output_path, task.mode,
+                task.quality, task.text_overlay
+            )
+            
+            # Ещё раз проверяем отмену после обработки
+            if not task.cancelled:
+                await task.callback(success, task.output_path if success else None)
+            else:
+                cleanup_file(task.output_path)
         except Exception as e:
             print(f"[WORKER] Error: {e}")
-            await task.callback(False, None)
+            if not task.cancelled:
+                await task.callback(False, None)
         finally:
             cleanup_file(task.input_path)
             processing_queue.task_done()
+            active_tasks.pop(task.task_id, None)
 
 async def start_workers():
     init_queue()
@@ -770,8 +859,27 @@ async def add_to_queue(task: ProcessingTask) -> bool:
     if processing_queue.full():
         return False
     
-    await processing_queue.put(task)
+    # Сохраняем задачу для возможности отмены
+    active_tasks[task.task_id] = task
+    
+    # Добавляем с приоритетом (отрицательный для правильной сортировки)
+    await processing_queue.put((-task.priority, task))
     return True
+
+def cancel_task(user_id: int) -> bool:
+    """ Отменить задачу пользователя в очереди """
+    for task_id, task in list(active_tasks.items()):
+        if task.user_id == user_id and not task.cancelled:
+            task.cancelled = True
+            return True
+    return False
+
+def get_user_task(user_id: int) -> ProcessingTask:
+    """ Получить активную задачу пользователя """
+    for task in active_tasks.values():
+        if task.user_id == user_id:
+            return task
+    return None
 
 def get_queue_size() -> int:
     return processing_queue.qsize() if processing_queue else 0
