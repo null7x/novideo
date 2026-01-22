@@ -2391,11 +2391,6 @@ async def cb_toggle_night(callback: CallbackQuery):
 async def handle_video(message: Message):
     user_id = message.from_user.id
     
-    # v2.8.0: Проверка режима техобслуживания
-    if is_maintenance_mode() and not is_admin(message.from_user):
-        await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
-        return
-    
     if rate_limiter.is_processing(user_id):
         await message.answer(get_text(user_id, "duplicate"))
         return
@@ -2571,12 +2566,8 @@ async def cb_process(callback: CallbackQuery):
             try:
                 # Увеличиваем счётчик статистики
                 rate_limiter.increment_video_count(user_id)
-                # v2.8.0: Обновляем streak
-                streak, bonus = rate_limiter.update_streak(user_id)
                 # Сохраняем в историю
                 rate_limiter.add_to_history(user_id, "unique", "file")
-                # v2.8.0: Добавляем в лог
-                rate_limiter.add_log(user_id, "video_processed", "file")
                 
                 video_file = FSInputFile(output_path)
                 await bot.send_video(
@@ -2936,11 +2927,6 @@ async def handle_url(message: Message):
     
     url = url_match.group(0)
     logger.info(f"[URL] Found URL: {url}")
-    
-    # v2.8.0: Проверка режима техобслуживания
-    if is_maintenance_mode() and not is_admin(message.from_user):
-        await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
-        return
     
     if rate_limiter.is_processing(user_id):
         await message.answer(get_text(user_id, "duplicate"))

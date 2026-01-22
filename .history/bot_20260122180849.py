@@ -2571,12 +2571,8 @@ async def cb_process(callback: CallbackQuery):
             try:
                 # Увеличиваем счётчик статистики
                 rate_limiter.increment_video_count(user_id)
-                # v2.8.0: Обновляем streak
-                streak, bonus = rate_limiter.update_streak(user_id)
                 # Сохраняем в историю
                 rate_limiter.add_to_history(user_id, "unique", "file")
-                # v2.8.0: Добавляем в лог
-                rate_limiter.add_log(user_id, "video_processed", "file")
                 
                 video_file = FSInputFile(output_path)
                 await bot.send_video(

@@ -20,19 +20,10 @@ from config import (
     FFMPEG_PATH,
     FFPROBE_PATH,
     Quality, QUALITY_SETTINGS, DEFAULT_QUALITY,
-    # v2.8.0
-    MAX_RETRY_ATTEMPTS,
-    RETRY_DELAY_SECONDS,
-    DOWNLOAD_TIMEOUT_SECONDS,
-    MEMORY_CLEANUP_INTERVAL_MINUTES,
 )
 
 processing_queue: asyncio.Queue = None
 active_processes: list = []
-
-# v2.8.0: Переменная для maintenance mode
-maintenance_mode: bool = False
-last_cleanup_time: float = 0
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ANTI-TIKTOK 2026: CREATIVE TEXTS
@@ -144,99 +135,6 @@ def cleanup_old_files(max_age_seconds: int = 3600):
         print(f"[CLEANUP] Removed {deleted} old files")
     
     return deleted
-
-# v2.8.0: Periodic memory cleanup
-async def periodic_cleanup():
-    """ Периодическая очистка памяти """
-    global last_cleanup_time
-    while True:
-        await asyncio.sleep(MEMORY_CLEANUP_INTERVAL_MINUTES * 60)
-        cleanup_old_files(max_age_seconds=1800)  # 30 минут
-        last_cleanup_time = time.time()
-        print(f"[CLEANUP] Periodic cleanup completed")
-
-# v2.8.0: Maintenance mode
-def set_maintenance_mode(enabled: bool):
-    """ Установить режим техобслуживания """
-    global maintenance_mode
-    maintenance_mode = enabled
-
-def is_maintenance_mode() -> bool:
-    """ Проверить режим техобслуживания """
-    return maintenance_mode
-
-# v2.8.0: Auto-retry wrapper
-async def with_retry(coro_func, *args, max_retries: int = MAX_RETRY_ATTEMPTS, **kwargs):
-    """
-    Выполнить корутину с автоматическим повтором при ошибке.
-    Returns: (success, result, attempts_made)
-    """
-    last_error = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            result = await coro_func(*args, **kwargs)
-            return True, result, attempt
-        except asyncio.TimeoutError as e:
-            last_error = e
-            print(f"[RETRY] Attempt {attempt}/{max_retries} timeout")
-        except Exception as e:
-            last_error = e
-            print(f"[RETRY] Attempt {attempt}/{max_retries} failed: {e}")
-        
-        if attempt < max_retries:
-            await asyncio.sleep(RETRY_DELAY_SECONDS * attempt)
-    
-    return False, last_error, max_retries
-
-# v2.8.0: Progress tracking
-class ProgressTracker:
-    """ Трекер прогресса обработки """
-    def __init__(self, total_duration: float):
-        self.total_duration = total_duration
-        self.current_time = 0
-        self.stage = "downloading"  # downloading, processing, uploading
-        self.start_time = time.time()
-    
-    def update(self, current_time: float):
-        self.current_time = current_time
-    
-    def set_stage(self, stage: str):
-        self.stage = stage
-    
-    def get_percent(self) -> int:
-        if self.total_duration <= 0:
-            return 0
-        return min(100, int((self.current_time / self.total_duration) * 100))
-    
-    def get_eta(self) -> str:
-        elapsed = time.time() - self.start_time
-        percent = self.get_percent()
-        if percent <= 0:
-            return "?"
-        
-        total_time = elapsed / (percent / 100)
-        remaining = total_time - elapsed
-        
-        if remaining < 60:
-            return f"{int(remaining)}с"
-        elif remaining < 3600:
-            return f"{int(remaining // 60)}м"
-        else:
-            return f"{int(remaining // 3600)}ч"
-
-# v2.8.0: Estimate queue wait time
-def estimate_queue_time(position: int) -> str:
-    """ Примерное время ожидания в очереди """
-    # Среднее время обработки ~30 сек
-    avg_process_time = 30
-    wait_seconds = (position / MAX_CONCURRENT_TASKS) * avg_process_time
-    
-    if wait_seconds < 60:
-        return f"{int(wait_seconds)}с"
-    elif wait_seconds < 3600:
-        return f"{int(wait_seconds // 60)}м"
-    else:
-        return f"{int(wait_seconds // 3600)}ч"
 
 def get_temp_dir_size() -> tuple:
     """
@@ -956,8 +854,6 @@ async def start_workers():
     init_queue()
     for _ in range(MAX_CONCURRENT_TASKS):
         asyncio.create_task(worker())
-    # v2.8.0: Запуск периодической очистки
-    asyncio.create_task(periodic_cleanup())
 
 async def add_to_queue(task: ProcessingTask) -> Tuple[bool, int]:
     """

@@ -29,10 +29,7 @@ from ffmpeg_utils import (
     start_workers, add_to_queue, ProcessingTask,
     get_temp_dir, generate_unique_filename, cleanup_file,
     cleanup_old_files, get_queue_size, cancel_task, get_user_task,
-    get_user_queue_count,
-    # v2.8.0
-    is_maintenance_mode, set_maintenance_mode, estimate_queue_time,
-    with_retry, ProgressTracker
+    get_user_queue_count
 )
 import time as time_module
 
@@ -1305,192 +1302,6 @@ async def cmd_cancel(message: Message):
         await message.answer(get_text(user_id, "cancel_failed"))
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# v2.8.0: NEW COMMANDS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@dp.message(Command("trial"))
-async def cmd_trial(message: Message):
-    """ /trial — активировать пробный VIP на 24 часа """
-    user_id = message.from_user.id
-    
-    if not rate_limiter.can_use_trial(user_id):
-        if rate_limiter.is_trial_used(user_id):
-            await message.answer(get_text(user_id, "trial_vip_already_used"))
-        else:
-            await message.answer(get_text(user_id, "trial_vip_not_available"))
-        return
-    
-    # Активируем trial
-    success = rate_limiter.activate_trial(user_id)
-    if success:
-        rate_limiter.add_log(user_id, "trial_activated", "24h VIP")
-        await message.answer(get_text(user_id, "trial_vip_activated"))
-    else:
-        await message.answer(get_text(user_id, "trial_vip_not_available"))
-
-
-@dp.message(Command("streak"))
-async def cmd_streak(message: Message):
-    """ /streak — информация о серии использования """
-    user_id = message.from_user.id
-    streak_info = rate_limiter.get_streak(user_id)
-    
-    bonus_text = get_text(user_id, "streak_bonus") if streak_info["has_bonus"] else get_text(user_id, "streak_no_bonus")
-    
-    text = get_text(user_id, "streak_info",
-        streak=streak_info["streak"],
-        bonus_text=bonus_text
-    )
-    await message.answer(text)
-
-
-@dp.message(Command("queue"))
-async def cmd_queue(message: Message):
-    """ /queue — статус очереди обработки """
-    user_id = message.from_user.id
-    queue_size = get_queue_size()
-    eta = estimate_queue_time(queue_size)
-    
-    text = get_text(user_id, "queue_status",
-        queue_size=queue_size,
-        workers=MAX_CONCURRENT_TASKS,
-        eta=eta
-    )
-    await message.answer(text)
-
-
-@dp.message(Command("favorites"))
-async def cmd_favorites(message: Message):
-    """ /favorites — список избранных настроек """
-    user_id = message.from_user.id
-    favorites = rate_limiter.get_favorites(user_id)
-    
-    if not favorites:
-        await message.answer(get_text(user_id, "favorites_empty"))
-        return
-    
-    fav_list = ""
-    for i, fav in enumerate(favorites, 1):
-        fav_list += f"{i}. <b>{fav['name']}</b> — {fav['quality']}, {'text ON' if fav['text_overlay'] else 'text OFF'}\n"
-    
-    text = get_text(user_id, "favorites_title", favorites_list=fav_list)
-    
-    # Кнопки для загрузки
-    buttons = []
-    for fav in favorites[:5]:
-        buttons.append([InlineKeyboardButton(
-            text=f"📂 {fav['name']}",
-            callback_data=f"load_fav:{fav['name']}"
-        )])
-    buttons.append([InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="settings")])
-    
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-
-@dp.message(Command("savefav"))
-async def cmd_savefav(message: Message):
-    """ /savefav <имя> — сохранить текущие настройки """
-    user_id = message.from_user.id
-    args = message.text.split(maxsplit=1)
-    
-    if len(args) < 2:
-        await message.answer("📝 Использование: <code>/savefav имя</code>\n\nПример: /savefav best_quality")
-        return
-    
-    name = args[1].strip()[:20]  # Макс 20 символов
-    rate_limiter.save_favorite(user_id, name)
-    rate_limiter.add_log(user_id, "fav_saved", name)
-    await message.answer(get_text(user_id, "favorite_saved", name=name))
-
-
-@dp.message(Command("delfav"))
-async def cmd_delfav(message: Message):
-    """ /delfav <имя> — удалить избранные настройки """
-    user_id = message.from_user.id
-    args = message.text.split(maxsplit=1)
-    
-    if len(args) < 2:
-        await message.answer("📝 Использование: <code>/delfav имя</code>")
-        return
-    
-    name = args[1].strip()
-    success = rate_limiter.delete_favorite(user_id, name)
-    
-    if success:
-        await message.answer(get_text(user_id, "favorite_deleted", name=name))
-    else:
-        await message.answer("❌ Настройки не найдены")
-
-
-@dp.callback_query(F.data.startswith("load_fav:"))
-async def cb_load_favorite(callback: CallbackQuery):
-    """ Загрузить избранные настройки """
-    user_id = callback.from_user.id
-    name = callback.data.split(":", 1)[1]
-    
-    success = rate_limiter.load_favorite(user_id, name)
-    
-    if success:
-        await callback.answer(get_text(user_id, "favorite_loaded", name=name), show_alert=True)
-    else:
-        await callback.answer("❌ Настройки не найдены", show_alert=True)
-
-
-@dp.message(Command("logs"))
-async def cmd_logs(message: Message):
-    """ /logs — последние операции (админ) """
-    if not is_admin(message.from_user):
-        await message.answer(TEXTS.get("not_admin", "⛔ Нет доступа"))
-        return
-    
-    # Показываем логи указанного пользователя или запрашивающего
-    args = message.text.split()
-    if len(args) > 1:
-        target = args[1]
-        if target.startswith("@"):
-            target_id = rate_limiter.find_user_by_username(target)
-        else:
-            try:
-                target_id = int(target)
-            except:
-                target_id = message.from_user.id
-    else:
-        target_id = message.from_user.id
-    
-    logs = rate_limiter.get_logs(target_id, 20)
-    
-    if not logs:
-        await message.answer(get_text(message.from_user.id, "logs_empty"))
-        return
-    
-    logs_list = ""
-    for log in logs:
-        logs_list += f"• {log['time']} — {log['op']}"
-        if log.get('details'):
-            logs_list += f" ({log['details']})"
-        logs_list += "\n"
-    
-    text = get_text(message.from_user.id, "logs_title", logs_list=logs_list)
-    await message.answer(text)
-
-
-@dp.message(Command("maintenance"))
-async def cmd_maintenance(message: Message):
-    """ /maintenance — включить/выключить режим техобслуживания (админ) """
-    if not is_admin(message.from_user):
-        await message.answer(TEXTS.get("not_admin", "⛔ Нет доступа"))
-        return
-    
-    current = is_maintenance_mode()
-    set_maintenance_mode(not current)
-    
-    if not current:
-        await message.answer(get_text(message.from_user.id, "maintenance_on"))
-    else:
-        await message.answer(get_text(message.from_user.id, "maintenance_off"))
-
-
 # ===== Админ-панель =====
 @dp.message(Command("admin"))
 async def cmd_admin(message: Message):
@@ -2391,11 +2202,6 @@ async def cb_toggle_night(callback: CallbackQuery):
 async def handle_video(message: Message):
     user_id = message.from_user.id
     
-    # v2.8.0: Проверка режима техобслуживания
-    if is_maintenance_mode() and not is_admin(message.from_user):
-        await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
-        return
-    
     if rate_limiter.is_processing(user_id):
         await message.answer(get_text(user_id, "duplicate"))
         return
@@ -2571,12 +2377,8 @@ async def cb_process(callback: CallbackQuery):
             try:
                 # Увеличиваем счётчик статистики
                 rate_limiter.increment_video_count(user_id)
-                # v2.8.0: Обновляем streak
-                streak, bonus = rate_limiter.update_streak(user_id)
                 # Сохраняем в историю
                 rate_limiter.add_to_history(user_id, "unique", "file")
-                # v2.8.0: Добавляем в лог
-                rate_limiter.add_log(user_id, "video_processed", "file")
                 
                 video_file = FSInputFile(output_path)
                 await bot.send_video(
@@ -2936,11 +2738,6 @@ async def handle_url(message: Message):
     
     url = url_match.group(0)
     logger.info(f"[URL] Found URL: {url}")
-    
-    # v2.8.0: Проверка режима техобслуживания
-    if is_maintenance_mode() and not is_admin(message.from_user):
-        await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
-        return
     
     if rate_limiter.is_processing(user_id):
         await message.answer(get_text(user_id, "duplicate"))

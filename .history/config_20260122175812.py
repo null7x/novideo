@@ -8,7 +8,7 @@ from typing import Dict, Any
 # ══════════════════════════════════════════════════════════════════════════════
 # BOT VERSION
 # ══════════════════════════════════════════════════════════════════════════════
-BOT_VERSION = "2.8.0"
+BOT_VERSION = "2.7.0"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BOT SETTINGS
@@ -82,15 +82,6 @@ ALLOWED_EXTENSIONS = (".mp4", ".mov")
 FFMPEG_TIMEOUT_SECONDS = 600
 MAX_QUEUE_SIZE = 10
 MAX_CONCURRENT_TASKS = 2
-
-# v2.8.0: Auto-retry & Timeout protection
-MAX_RETRY_ATTEMPTS = 3
-RETRY_DELAY_SECONDS = 2
-DOWNLOAD_TIMEOUT_SECONDS = 120
-MEMORY_CLEANUP_INTERVAL_MINUTES = 30
-
-# v2.8.0: Maintenance mode
-MAINTENANCE_MODE = False
 
 # ══════════════════════════════════════════════════════════════════════════════
 # QUALITY PRESETS
@@ -444,48 +435,6 @@ TEXTS = {
     # Ночной режим
     "night_mode_on": "🌙 Ночной режим включён (тихие уведомления)",
     "night_mode_off": "☀️ Ночной режим выключен",
-    # v2.8.0: Auto-retry & Progress
-    "retry_attempt": "🔄 Повторная попытка ({attempt}/{max})...",
-    "timeout_error": "⏱ Превышено время ожидания. Попробуй позже.",
-    "progress_downloading": "📥 Скачиваю: {percent}%",
-    "progress_processing": "🎨 Обрабатываю: {percent}%",
-    "progress_uploading": "📤 Отправляю: {percent}%",
-    "eta_remaining": "⏱ Осталось: ~{time}",
-    # v2.8.0: Maintenance mode
-    "maintenance_mode": "🔧 Бот на техобслуживании. Попробуй через {minutes} минут.",
-    "maintenance_on": "🔧 Режим техобслуживания ВКЛЮЧЁН",
-    "maintenance_off": "✅ Режим техобслуживания ВЫКЛЮЧЕН",
-    # v2.8.0: Trial VIP
-    "trial_vip_available": "🎁 Попробуй VIP бесплатно на 24 часа!\n\nНажми /trial чтобы активировать.",
-    "trial_vip_activated": "🎉 <b>Trial VIP активирован!</b>\n\n⏱ Действует 24 часа\n🎬 100 видео в неделю\n📈 Максимальное качество",
-    "trial_vip_already_used": "⚠️ Ты уже использовал пробный период.",
-    "trial_vip_not_available": "⚠️ Trial доступен только для Free пользователей.",
-    # v2.8.0: Streak bonus
-    "streak_info": "🔥 <b>Твоя серия:</b> {streak} дней\n\n{bonus_text}",
-    "streak_bonus": "🎁 Бонус за 7-дневную серию: <b>+1 видео/день</b>",
-    "streak_no_bonus": "Используй бота каждый день чтобы получить бонус!",
-    "streak_lost": "😔 Серия сброшена. Начни заново!",
-    "streak_continued": "🔥 Отлично! Серия продолжается: {streak} дней",
-    # v2.8.0: History
-    "history_title": "📜 <b>Последние 10 видео:</b>\n\n{history_list}",
-    "history_empty": "📜 История пуста",
-    "history_item": "{num}. {date} — {mode} ({source})",
-    # v2.8.0: Queue status
-    "queue_status": "📊 <b>Статус очереди</b>\n\n📥 В очереди: {queue_size}\n👷 Воркеров: {workers}\n⏱ Примерное время: ~{eta}",
-    # v2.8.0: Logs
-    "logs_title": "📝 <b>Последние операции:</b>\n\n{logs_list}",
-    "logs_empty": "📝 Логи пусты",
-    # v2.8.0: Error details
-    "error_details": "⚠️ <b>Ошибка:</b> {error_type}\n\n<code>{details}</code>\n\n💡 {suggestion}",
-    # v2.8.0: Broadcast confirm
-    "broadcast_confirm": "📢 <b>Подтверди рассылку</b>\n\n👥 Получателей: {count}\n\n📝 Текст:\n{text}",
-    "broadcast_cancelled": "❌ Рассылка отменена",
-    # v2.8.0: Favorites
-    "favorites_title": "⭐ <b>Избранные настройки:</b>\n\n{favorites_list}",
-    "favorites_empty": "⭐ Нет сохранённых настроек\n\nИспользуй /savefav для сохранения текущих настроек.",
-    "favorite_saved": "⭐ Настройки сохранены как '{name}'",
-    "favorite_loaded": "✅ Загружены настройки '{name}'",
-    "favorite_deleted": "🗑 Удалены настройки '{name}'",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -686,48 +635,6 @@ TEXTS_EN = {
     # Night mode
     "night_mode_on": "🌙 Night mode enabled (quiet notifications)",
     "night_mode_off": "☀️ Night mode disabled",
-    # v2.8.0: Auto-retry & Progress
-    "retry_attempt": "🔄 Retry attempt ({attempt}/{max})...",
-    "timeout_error": "⏱ Timeout exceeded. Try again later.",
-    "progress_downloading": "📥 Downloading: {percent}%",
-    "progress_processing": "🎨 Processing: {percent}%",
-    "progress_uploading": "📤 Uploading: {percent}%",
-    "eta_remaining": "⏱ Remaining: ~{time}",
-    # v2.8.0: Maintenance mode
-    "maintenance_mode": "🔧 Bot is under maintenance. Try again in {minutes} minutes.",
-    "maintenance_on": "🔧 Maintenance mode ENABLED",
-    "maintenance_off": "✅ Maintenance mode DISABLED",
-    # v2.8.0: Trial VIP
-    "trial_vip_available": "🎁 Try VIP free for 24 hours!\n\nPress /trial to activate.",
-    "trial_vip_activated": "🎉 <b>Trial VIP activated!</b>\n\n⏱ Valid for 24 hours\n🎬 100 videos per week\n📈 Maximum quality",
-    "trial_vip_already_used": "⚠️ You've already used your trial period.",
-    "trial_vip_not_available": "⚠️ Trial is only available for Free users.",
-    # v2.8.0: Streak bonus
-    "streak_info": "🔥 <b>Your streak:</b> {streak} days\n\n{bonus_text}",
-    "streak_bonus": "🎁 7-day streak bonus: <b>+1 video/day</b>",
-    "streak_no_bonus": "Use the bot daily to get a bonus!",
-    "streak_lost": "😔 Streak reset. Start again!",
-    "streak_continued": "🔥 Great! Streak continues: {streak} days",
-    # v2.8.0: History
-    "history_title": "📜 <b>Last 10 videos:</b>\n\n{history_list}",
-    "history_empty": "📜 History is empty",
-    "history_item": "{num}. {date} — {mode} ({source})",
-    # v2.8.0: Queue status
-    "queue_status": "📊 <b>Queue Status</b>\n\n📥 In queue: {queue_size}\n👷 Workers: {workers}\n⏱ Estimated time: ~{eta}",
-    # v2.8.0: Logs
-    "logs_title": "📝 <b>Recent operations:</b>\n\n{logs_list}",
-    "logs_empty": "📝 Logs are empty",
-    # v2.8.0: Error details
-    "error_details": "⚠️ <b>Error:</b> {error_type}\n\n<code>{details}</code>\n\n💡 {suggestion}",
-    # v2.8.0: Broadcast confirm
-    "broadcast_confirm": "📢 <b>Confirm broadcast</b>\n\n👥 Recipients: {count}\n\n📝 Text:\n{text}",
-    "broadcast_cancelled": "❌ Broadcast cancelled",
-    # v2.8.0: Favorites
-    "favorites_title": "⭐ <b>Favorite settings:</b>\n\n{favorites_list}",
-    "favorites_empty": "⭐ No saved settings\n\nUse /savefav to save current settings.",
-    "favorite_saved": "⭐ Settings saved as '{name}'",
-    "favorite_loaded": "✅ Loaded settings '{name}'",
-    "favorite_deleted": "🗑 Deleted settings '{name}'",
 }
 
 BUTTONS_EN = {
@@ -759,12 +666,6 @@ BUTTONS_EN = {
     "feedback": "📝 Feedback",
     "top": "🏆 Top Users",
     "night_mode": "🌙 Night Mode",
-    # v2.8.0
-    "history": "📜 History",
-    "queue": "📊 Queue",
-    "favorites": "⭐ Favorites",
-    "streak": "🔥 Streak",
-    "trial": "🎁 Trial VIP",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -800,10 +701,4 @@ BUTTONS = {
     "feedback": "📝 Отзыв",
     "top": "🏆 Топ юзеров",
     "night_mode": "🌙 Ночной режим",
-    # v2.8.0
-    "history": "📜 История",
-    "queue": "📊 Очередь",
-    "favorites": "⭐ Избранное",
-    "streak": "🔥 Серия",
-    "trial": "🎁 Пробный VIP",
 }
