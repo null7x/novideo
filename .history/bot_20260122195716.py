@@ -3,7 +3,6 @@ Virex — Telegram Bot
 """
 import os
 import re
-import sys
 import asyncio
 import logging
 import uuid
@@ -23,8 +22,7 @@ from config import (
     MAX_FILE_SIZE_MB, MAX_VIDEO_DURATION_SECONDS, ALLOWED_EXTENSIONS,
     TEXTS, BUTTONS, Quality, QUALITY_SETTINGS, SHORT_ID_TTL_SECONDS,
     ADMIN_IDS, ADMIN_USERNAMES, PLAN_LIMITS, MAX_CONCURRENT_TASKS,
-    TEXTS_EN, BUTTONS_EN, BOT_VERSION,
-    FFMPEG_PATH, FFPROBE_PATH
+    TEXTS_EN, BUTTONS_EN, BOT_VERSION
 )
 from rate_limit import rate_limiter
 from ffmpeg_utils import (
@@ -4372,14 +4370,6 @@ async def handle_other(message: Message):
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def on_startup():
-    # Диагностика FFmpeg
-    import shutil
-    logger.info(f"[FFMPEG] FFMPEG_PATH = {FFMPEG_PATH}")
-    logger.info(f"[FFMPEG] FFPROBE_PATH = {FFPROBE_PATH}")
-    logger.info(f"[FFMPEG] which ffmpeg = {shutil.which('ffmpeg')}")
-    logger.info(f"[FFMPEG] which ffprobe = {shutil.which('ffprobe')}")
-    logger.info(f"[FFMPEG] OS = {os.name}, Platform = {sys.platform}")
-    
     # Автоматическое обновление yt-dlp при старте (в фоне)
     asyncio.create_task(auto_update_ytdlp())
     await start_workers()

@@ -3,7 +3,6 @@ Virex — Telegram Bot
 """
 import os
 import re
-import sys
 import asyncio
 import logging
 import uuid
