@@ -353,7 +353,7 @@ TEXTS = {
         "🔗 Твоя ссылка:\n<code>{link}</code>\n\n"
         "👤 Приглашено: <b>{count}</b> человек\n"
         "🎁 Бонусных видео: <b>{bonus}</b>\n\n"
-        "💪 Приглашай друзей и получай <b>+3 видео</b> за каждого!"
+        "Приглашай друзей и получай +1 видео за каждого!"
     ),
     "referral_bonus_used": "🎁 Использован 1 бонус! Осталось: {remaining}",
     "referral_welcome": "🎉 Ты пришёл по приглашению! Твой друг получил бонус.",
@@ -528,7 +528,7 @@ TEXTS_EN = {
         "🔗 Your link:\n<code>{link}</code>\n\n"
         "👤 Invited: <b>{count}</b> people\n"
         "🎁 Bonus videos: <b>{bonus}</b>\n\n"
-        "💪 Invite friends and get <b>+3 videos</b> for each!"
+        "Invite friends and get +1 video for each!"
     ),
     "plan_expiring": "⚠️ Your {plan} expires in {days} days!\n\nRenew to keep benefits.",
     "plan_expired": "😔 Your {plan} has expired. You now have Free plan.",
@@ -663,9 +663,6 @@ BUTTONS_EN = {
     "update_ytdlp": "🔄 Update yt-dlp",
     "admin_stats": "📊 Global Statistics",
     "help": "❓ Help / FAQ",
-    "feedback": "📝 Feedback",
-    "top": "🏆 Top Users",
-    "night_mode": "🌙 Night Mode",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -698,7 +695,4 @@ BUTTONS = {
     "referral": "👥 Рефералы",
     "language": "🌐 Язык",
     "help": "❓ Помощь / FAQ",
-    "feedback": "📝 Отзыв",
-    "top": "🏆 Топ юзеров",
-    "night_mode": "🌙 Ночной режим",
 }

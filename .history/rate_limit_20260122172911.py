@@ -66,10 +66,6 @@ class UserState:
     plan_expires: str = ""  # ISO дата окончания
     # Уведомление об истечении
     expiry_notified: str = ""  # Дата последнего уведомления
-    # Ночной режим
-    night_mode: bool = False
-    # История загрузок (последние 20)
-    history: list = field(default_factory=list)
 
 class RateLimiter:
     def __init__(self):
@@ -124,8 +120,6 @@ class RateLimiter:
                     "referral_count": user.referral_count,
                     "referral_bonus": user.referral_bonus,
                     "plan_expires": user.plan_expires,
-                    "night_mode": user.night_mode,
-                    "history": getattr(user, 'history', [])[:20],
                 }
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -633,6 +627,21 @@ class RateLimiter:
     # REFERRAL SYSTEM
     # ═════════════════════════════════════════════════════════════
     
+    def set_referrer(self, user_id: int, referrer_id: int):
+        """ Установить реферера (кто пригласил) """
+        if user_id == referrer_id:
+            return False
+        user = self.get_user(user_id)
+        if user.referrer_id == 0:  # Только если ещё не установлен
+            user.referrer_id = referrer_id
+            # Увеличиваем счётчик рефералов у пригласившего
+            referrer = self.get_user(referrer_id)
+            referrer.referral_count += 1
+            referrer.referral_bonus += 1  # +1 бонусное видео
+            self.save_data()
+            return True
+        return False
+    
     def get_referral_stats(self, user_id: int) -> dict:
         user = self.get_user(user_id)
         return {
@@ -740,83 +749,6 @@ class RateLimiter:
         user = self.get_user(user_id)
         user.expiry_notified = datetime.date.today().isoformat()
         self.save_data()
-    
-    # ═════════════════════════════════════════════════════════════
-    # NIGHT MODE
-    # ═════════════════════════════════════════════════════════════
-    
-    def toggle_night_mode(self, user_id: int) -> bool:
-        """ Переключить ночной режим, вернуть новое значение """
-        user = self.get_user(user_id)
-        user.night_mode = not user.night_mode
-        self.save_data()
-        return user.night_mode
-    
-    def is_night_mode(self, user_id: int) -> bool:
-        return self.get_user(user_id).night_mode
-    
-    # ═════════════════════════════════════════════════════════════
-    # TOP USERS
-    # ═════════════════════════════════════════════════════════════
-    
-    def get_top_users(self, limit: int = 10) -> list:
-        """ Получить топ пользователей по количеству обработок """
-        sorted_users = sorted(
-            self.users.values(),
-            key=lambda u: u.total_videos,
-            reverse=True
-        )[:limit]
-        
-        result = []
-        for i, user in enumerate(sorted_users, 1):
-            result.append({
-                "position": i,
-                "user_id": user.user_id,
-                "username": user.username,
-                "total_videos": user.total_videos,
-                "plan": user.plan,
-            })
-        return result
-    
-    # ═════════════════════════════════════════════════════════════
-    # BAN LIST
-    # ═════════════════════════════════════════════════════════════
-    
-    def get_banned_users(self) -> list:
-        """ Получить список забаненных пользователей """
-        result = []
-        for user in self.users.values():
-            if user.banned:
-                result.append({
-                    "user_id": user.user_id,
-                    "username": user.username,
-                    "reason": user.ban_reason,
-                })
-        return result
-    
-    # ═════════════════════════════════════════════════════════════
-    # REFERRAL BONUS +3 VIDEOS
-    # ═════════════════════════════════════════════════════════════
-    
-    def set_referrer(self, user_id: int, referrer_id: int):
-        """ Установить реферера (кто пригласил) - даёт +3 видео """
-        if user_id == referrer_id:
-            return False
-        user = self.get_user(user_id)
-        if user.referrer_id == 0:  # Только если ещё не установлен
-            user.referrer_id = referrer_id
-            # Увеличиваем счётчик рефералов у пригласившего
-            referrer = self.get_user(referrer_id)
-            referrer.referral_count += 1
-            referrer.referral_bonus += 3  # +3 бонусных видео
-            self.save_data()
-            return True
-        return False
-    
-    def has_referral_bonus(self, user_id: int) -> bool:
-        """ Есть ли бонусные видео """
-        user = self.get_user(user_id)
-        return user.referral_bonus > 0
     
     def get_all_users(self) -> list:
         """ Получить список всех ID пользователей """

@@ -5,6 +5,10 @@
     "total_videos": 0,
     "monthly_videos": 0,
     "period_start": "",
+    "daily_videos": 0,
+    "daily_date": "",
+    "weekly_videos": 0,
+    "week_start": "",
     "username": "Aminjon_ool",
     "total_downloads": 0,
     "monthly_downloads": 0,
@@ -17,7 +21,9 @@
     "referrer_id": 0,
     "referral_count": 0,
     "referral_bonus": 0,
-    "plan_expires": ""
+    "plan_expires": "",
+    "night_mode": false,
+    "history": []
   },
   "7768016686": {
     "plan": "free",
@@ -25,6 +31,10 @@
     "total_videos": 0,
     "monthly_videos": 0,
     "period_start": "2026-01-22",
+    "daily_videos": 0,
+    "daily_date": "",
+    "weekly_videos": 0,
+    "week_start": "",
     "username": "Null7_x",
     "total_downloads": 0,
     "monthly_downloads": 0,
@@ -37,6 +47,34 @@
     "referrer_id": 0,
     "referral_count": 0,
     "referral_bonus": 0,
-    "plan_expires": ""
+    "plan_expires": "",
+    "night_mode": false,
+    "history": []
+  },
+  "999999": {
+    "plan": "free",
+    "mode": "tiktok",
+    "total_videos": 0,
+    "monthly_videos": 0,
+    "period_start": "",
+    "daily_videos": 0,
+    "daily_date": "",
+    "weekly_videos": 0,
+    "week_start": "",
+    "username": "",
+    "total_downloads": 0,
+    "monthly_downloads": 0,
+    "first_seen": "",
+    "quality": "max",
+    "text_overlay": true,
+    "banned": false,
+    "ban_reason": "",
+    "language": "ru",
+    "referrer_id": 0,
+    "referral_count": 0,
+    "referral_bonus": 0,
+    "plan_expires": "",
+    "night_mode": true,
+    "history": []
   }
 }

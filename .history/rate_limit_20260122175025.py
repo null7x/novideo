@@ -633,6 +633,21 @@ class RateLimiter:
     # REFERRAL SYSTEM
     # ═════════════════════════════════════════════════════════════
     
+    def set_referrer(self, user_id: int, referrer_id: int):
+        """ Установить реферера (кто пригласил) """
+        if user_id == referrer_id:
+            return False
+        user = self.get_user(user_id)
+        if user.referrer_id == 0:  # Только если ещё не установлен
+            user.referrer_id = referrer_id
+            # Увеличиваем счётчик рефералов у пригласившего
+            referrer = self.get_user(referrer_id)
+            referrer.referral_count += 1
+            referrer.referral_bonus += 1  # +1 бонусное видео
+            self.save_data()
+            return True
+        return False
+    
     def get_referral_stats(self, user_id: int) -> dict:
         user = self.get_user(user_id)
         return {

@@ -162,20 +162,8 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
         ])
 
 def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
-    """ Клавиатура при получении видео — с быстрым выбором качества """
-    quality = rate_limiter.get_quality(user_id)
-    
-    # Иконки качества
-    q_icons = {Quality.LOW: "📉", Quality.MEDIUM: "📊", Quality.MAX: "📈"}
-    current_icon = q_icons.get(quality, "📊")
-    
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🎯 {get_button(user_id, 'uniqualize')} {current_icon}", callback_data=f"process:{short_id}")],
-        [
-            InlineKeyboardButton(text="📉", callback_data=f"quick_q:low:{short_id}"),
-            InlineKeyboardButton(text="📊", callback_data=f"quick_q:medium:{short_id}"),
-            InlineKeyboardButton(text="📈", callback_data=f"quick_q:max:{short_id}"),
-        ],
+        [InlineKeyboardButton(text=get_button(user_id, "uniqualize"), callback_data=f"process:{short_id}")],
     ])
 
 def get_result_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
@@ -219,10 +207,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     
     text_btn = get_button(user_id, "text_on") if text_on else get_button(user_id, "text_off")
     
-    # Ночной режим
-    night_mode = rate_limiter.is_night_mode(user_id)
-    night_btn = "🌙 Ночной: ВКЛ" if night_mode else "☀️ Ночной: ВЫКЛ"
-    
     # Показываем кнопку купить только для free пользователей
     plan = rate_limiter.get_plan(user_id)
     
@@ -235,10 +219,7 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=q_med, callback_data="quality_medium"),
             InlineKeyboardButton(text=q_max, callback_data="quality_max"),
         ],
-        [
-            InlineKeyboardButton(text=text_btn, callback_data="toggle_text"),
-            InlineKeyboardButton(text=night_btn, callback_data="toggle_night"),
-        ],
+        [InlineKeyboardButton(text=text_btn, callback_data="toggle_text")],
         [
             InlineKeyboardButton(text=get_button(user_id, "stats"), callback_data="stats"),
             InlineKeyboardButton(text=get_button(user_id, "referral"), callback_data="referral"),
@@ -332,18 +313,6 @@ async def cmd_start(message: Message):
     if rate_limiter.check_plan_expiry(user_id):
         plan = rate_limiter.get_plan(user_id)
         await message.answer(get_text(user_id, "plan_expired", plan=plan))
-    
-    # Уведомление об истекающей подписке (≤1 день)
-    plan_info = rate_limiter.get_plan_expiry_info(user_id)
-    if plan_info["has_expiry"] and plan_info["days_left"] is not None and plan_info["days_left"] <= 1:
-        plan = rate_limiter.get_plan(user_id)
-        plan_names = {"vip": "VIP", "premium": "Premium"}
-        days_word = "день" if plan_info["days_left"] == 1 else "дней"
-        await message.answer(get_text(user_id, "subscription_warning",
-            plan=plan_names.get(plan, plan),
-            days=plan_info["days_left"],
-            days_word=days_word
-        ))
     
     text = get_text(user_id, "start") if mode == Mode.TIKTOK else get_text(user_id, "start_youtube")
     await message.answer(text, reply_markup=get_start_keyboard(mode, user_id))
@@ -1759,38 +1728,6 @@ async def cb_admin_cleanup_temp(callback: CallbackQuery):
     await cb_admin_health(callback)
 
 
-# ===== Быстрый выбор качества =====
-@dp.callback_query(F.data.startswith("quick_q:"))
-async def cb_quick_quality(callback: CallbackQuery):
-    """ Быстрая смена качества перед обработкой """
-    user_id = callback.from_user.id
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    parts = callback.data.split(":")
-    if len(parts) < 3:
-        await callback.answer()
-        return
-    
-    quality_map = {"low": Quality.LOW, "medium": Quality.MEDIUM, "max": Quality.MAX}
-    new_quality = quality_map.get(parts[1])
-    short_id = parts[2]
-    
-    if new_quality:
-        rate_limiter.set_quality(user_id, new_quality)
-        quality_names = {"low": "📉 Быстрое", "medium": "📊 Среднее", "max": "📈 Максимум"}
-        await callback.answer(f"✅ Качество: {quality_names.get(parts[1], parts[1])}", show_alert=False)
-        
-        # Обновляем клавиатуру
-        await callback.message.edit_reply_markup(
-            reply_markup=get_video_keyboard(short_id, user_id)
-        )
-    else:
-        await callback.answer()
-
-
 # ===== Кнопка отмены при обработке =====
 @dp.callback_query(F.data == "cancel_processing")
 async def cb_cancel_processing(callback: CallbackQuery):
@@ -2175,29 +2112,6 @@ async def cb_toggle_text(callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
     await callback.answer(get_text(user_id, "text_on") if new_value else get_text(user_id, "text_off"))
 
-
-@dp.callback_query(F.data == "toggle_night")
-async def cb_toggle_night(callback: CallbackQuery):
-    """ Переключить ночной режим """
-    user_id = callback.from_user.id
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    new_value = rate_limiter.toggle_night_mode(user_id)
-    
-    quality = rate_limiter.get_quality(user_id)
-    quality_names = {Quality.LOW: "📉 Quick", Quality.MEDIUM: "📊 Medium", Quality.MAX: "📈 Maximum"}
-    
-    text = get_text(user_id, "settings",
-        quality=quality_names.get(quality, quality),
-        text_overlay="ON" if rate_limiter.get_text_overlay(user_id) else "OFF"
-    )
-    await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
-    await callback.answer(get_text(user_id, "night_mode_on") if new_value else get_text(user_id, "night_mode_off"))
-
-
 @dp.message(F.video | F.document)
 async def handle_video(message: Message):
     user_id = message.from_user.id
@@ -2406,20 +2320,11 @@ async def cb_process(callback: CallbackQuery):
         priority=priority
     )
     
-    queued, position = await add_to_queue(task)
+    queued = await add_to_queue(task)
     if not queued:
         rate_limiter.set_processing(user_id, False)
         cleanup_file(input_path)
         await callback.message.edit_text(get_text(user_id, "queue_full"))
-    elif position > 1:
-        # Показываем позицию в очереди если не первый
-        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_processing")]
-        ])
-        await callback.message.edit_text(
-            f"{get_text(user_id, 'queue_position', position=position)}\n{get_text(user_id, 'processing')}",
-            reply_markup=cancel_kb
-        )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # URL VIDEO DOWNLOAD
@@ -3005,21 +2910,12 @@ async def cb_url_process(callback: CallbackQuery):
         priority=priority
     )
     
-    queued, position = await add_to_queue(task)
+    queued = await add_to_queue(task)
     if not queued:
         rate_limiter.set_processing(user_id, False)
         cleanup_file(output_path)
         await callback.message.edit_text(get_text(user_id, "queue_full"))
         pending_urls.pop(short_id, None)
-    elif position > 1:
-        # Показываем позицию в очереди если не первый
-        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_processing")]
-        ])
-        await callback.message.edit_text(
-            f"{get_text(user_id, 'queue_position', position=position)}\n{get_text(user_id, 'processing')}",
-            reply_markup=cancel_kb
-        )
 
 @dp.message()
 async def handle_other(message: Message):

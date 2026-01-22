@@ -219,10 +219,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     
     text_btn = get_button(user_id, "text_on") if text_on else get_button(user_id, "text_off")
     
-    # Ночной режим
-    night_mode = rate_limiter.is_night_mode(user_id)
-    night_btn = "🌙 Ночной: ВКЛ" if night_mode else "☀️ Ночной: ВЫКЛ"
-    
     # Показываем кнопку купить только для free пользователей
     plan = rate_limiter.get_plan(user_id)
     
@@ -235,10 +231,7 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=q_med, callback_data="quality_medium"),
             InlineKeyboardButton(text=q_max, callback_data="quality_max"),
         ],
-        [
-            InlineKeyboardButton(text=text_btn, callback_data="toggle_text"),
-            InlineKeyboardButton(text=night_btn, callback_data="toggle_night"),
-        ],
+        [InlineKeyboardButton(text=text_btn, callback_data="toggle_text")],
         [
             InlineKeyboardButton(text=get_button(user_id, "stats"), callback_data="stats"),
             InlineKeyboardButton(text=get_button(user_id, "referral"), callback_data="referral"),
@@ -2175,29 +2168,6 @@ async def cb_toggle_text(callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
     await callback.answer(get_text(user_id, "text_on") if new_value else get_text(user_id, "text_off"))
 
-
-@dp.callback_query(F.data == "toggle_night")
-async def cb_toggle_night(callback: CallbackQuery):
-    """ Переключить ночной режим """
-    user_id = callback.from_user.id
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    new_value = rate_limiter.toggle_night_mode(user_id)
-    
-    quality = rate_limiter.get_quality(user_id)
-    quality_names = {Quality.LOW: "📉 Quick", Quality.MEDIUM: "📊 Medium", Quality.MAX: "📈 Maximum"}
-    
-    text = get_text(user_id, "settings",
-        quality=quality_names.get(quality, quality),
-        text_overlay="ON" if rate_limiter.get_text_overlay(user_id) else "OFF"
-    )
-    await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
-    await callback.answer(get_text(user_id, "night_mode_on") if new_value else get_text(user_id, "night_mode_off"))
-
-
 @dp.message(F.video | F.document)
 async def handle_video(message: Message):
     user_id = message.from_user.id
@@ -3005,21 +2975,12 @@ async def cb_url_process(callback: CallbackQuery):
         priority=priority
     )
     
-    queued, position = await add_to_queue(task)
+    queued = await add_to_queue(task)
     if not queued:
         rate_limiter.set_processing(user_id, False)
         cleanup_file(output_path)
         await callback.message.edit_text(get_text(user_id, "queue_full"))
         pending_urls.pop(short_id, None)
-    elif position > 1:
-        # Показываем позицию в очереди если не первый
-        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_processing")]
-        ])
-        await callback.message.edit_text(
-            f"{get_text(user_id, 'queue_position', position=position)}\n{get_text(user_id, 'processing')}",
-            reply_markup=cancel_kb
-        )
 
 @dp.message()
 async def handle_other(message: Message):
