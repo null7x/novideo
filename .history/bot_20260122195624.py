@@ -998,12 +998,9 @@ async def cb_start_lang(callback: CallbackQuery):
     rate_limiter.set_language(user_id, lang)
     
     # Обрабатываем реферала если есть
-    print(f"[LANG] User {user_id} selected lang {lang}, pending_referrers={pending_referrers}")
     if user_id in pending_referrers:
         referrer_id = pending_referrers.pop(user_id)
-        print(f"[LANG] Processing referral: {user_id} -> {referrer_id}")
-        result = rate_limiter.set_referrer(user_id, referrer_id)
-        print(f"[LANG] set_referrer result: {result}")
+        rate_limiter.set_referrer(user_id, referrer_id)
     
     # Сохраняем данные
     rate_limiter.save_data()
