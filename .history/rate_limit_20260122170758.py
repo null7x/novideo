@@ -351,13 +351,7 @@ class RateLimiter:
         user.today_videos += 1
         user.last_process_time = time.time()
         
-        # Дневной и недельный счётчики
-        self._reset_daily_if_needed(user_id)
-        self._reset_weekly_if_needed(user_id)
-        user.daily_videos += 1
-        user.weekly_videos += 1
-        
-        # Месячный счётчик (для совместимости)
+        # Месячный счётчик
         self._reset_monthly_if_needed(user_id)
         user.monthly_videos += 1
     
@@ -373,22 +367,15 @@ class RateLimiter:
             user.today_date = today
             user.today_videos = 0
         
-        # Сброс счётчиков
-        self._reset_daily_if_needed(user_id)
-        self._reset_weekly_if_needed(user_id)
+        # Сброс месячного счётчика
+        self._reset_monthly_if_needed(user_id)
         
         return {
             "total_videos": user.total_videos,
             "today_videos": user.today_videos,
-            "daily_videos": user.daily_videos,
-            "daily_limit": limits.videos_per_day,
-            "daily_remaining": max(0, limits.videos_per_day - user.daily_videos),
-            "weekly_videos": user.weekly_videos,
-            "weekly_limit": limits.videos_per_week,
-            "weekly_remaining": max(0, limits.videos_per_week - user.weekly_videos),
             "monthly_videos": user.monthly_videos,
-            "monthly_limit": limits.videos_per_week,  # Используем недельный для совместимости
-            "monthly_remaining": max(0, limits.videos_per_week - user.weekly_videos),
+            "monthly_limit": limits.videos_per_month,
+            "monthly_remaining": max(0, limits.videos_per_month - user.monthly_videos),
             "last_process_time": user.last_process_time,
             "mode": user.mode,
             "quality": user.quality,

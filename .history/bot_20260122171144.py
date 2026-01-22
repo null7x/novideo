@@ -1879,13 +1879,13 @@ async def handle_video(message: Message):
     
     mode = rate_limiter.get_mode(user_id)
     mode_text = "TikTok MAX" if mode == Mode.TIKTOK else "YouTube Shorts MAX"
-    daily_remaining = rate_limiter.get_daily_remaining(user_id)
+    monthly_remaining = rate_limiter.get_monthly_remaining(user_id)
     stats = rate_limiter.get_stats(user_id)
     plan_names = {"free": "🆓", "vip": "⭐", "premium": "👑"}
     plan_icon = plan_names.get(stats.get("plan", "free"), "🆓")
     
     await message.answer(
-        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Сегодня: {daily_remaining} видео {plan_icon}",
+        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Осталось (30 дн.): {monthly_remaining} видео {plan_icon}",
         reply_markup=get_video_keyboard(short_id, user_id)
     )
 

@@ -347,19 +347,14 @@ async def cmd_stats(message: Message):
     text = get_text(user_id, "stats",
         total_videos=stats["total_videos"],
         today_videos=stats["today_videos"],
-        daily_videos=stats.get("daily_videos", 0),
-        daily_limit=stats.get("daily_limit", 2),
-        weekly_videos=stats.get("weekly_videos", 0),
-        weekly_limit=stats.get("weekly_limit", 14),
         monthly_videos=stats.get("monthly_videos", 0),
-        monthly_limit=stats.get("monthly_limit", 14),
-        monthly_remaining=stats.get("monthly_remaining", 14),
+        monthly_limit=stats.get("monthly_limit", 3),
+        monthly_remaining=stats.get("monthly_remaining", 3),
         last_time=last_time,
         mode=mode_names.get(stats["mode"], stats["mode"]),
         quality=quality_names.get(stats["quality"], stats["quality"]),
         text_overlay="ON" if stats["text_overlay"] else "OFF",
-        plan=plan_names.get(stats.get("plan", "free"), "🆓 Free"),
-        total_downloads=stats.get("total_downloads", 0)
+        plan=plan_names.get(stats.get("plan", "free"), "🆓 Free")
     )
     
     await message.answer(text, reply_markup=get_stats_keyboard(user_id))
@@ -1701,19 +1696,14 @@ async def cb_stats(callback: CallbackQuery):
     text = get_text(user_id, "stats",
         total_videos=stats["total_videos"],
         today_videos=stats["today_videos"],
-        daily_videos=stats.get("daily_videos", 0),
-        daily_limit=stats.get("daily_limit", 2),
-        weekly_videos=stats.get("weekly_videos", 0),
-        weekly_limit=stats.get("weekly_limit", 14),
         monthly_videos=stats.get("monthly_videos", 0),
-        monthly_limit=stats.get("monthly_limit", 14),
-        monthly_remaining=stats.get("monthly_remaining", 14),
+        monthly_limit=stats.get("monthly_limit", 3),
+        monthly_remaining=stats.get("monthly_remaining", 3),
         last_time=last_time,
         mode=mode_names.get(stats["mode"], stats["mode"]),
         quality=quality_names.get(stats["quality"], stats["quality"]),
         text_overlay="ON" if stats["text_overlay"] else "OFF",
-        plan=plan_names.get(stats.get("plan", "free"), "🆓 Free"),
-        total_downloads=stats.get("total_downloads", 0)
+        plan=plan_names.get(stats.get("plan", "free"), "🆓 Free")
     )
     
     await callback.message.edit_text(text, reply_markup=get_stats_keyboard(user_id))
@@ -1879,13 +1869,13 @@ async def handle_video(message: Message):
     
     mode = rate_limiter.get_mode(user_id)
     mode_text = "TikTok MAX" if mode == Mode.TIKTOK else "YouTube Shorts MAX"
-    daily_remaining = rate_limiter.get_daily_remaining(user_id)
+    monthly_remaining = rate_limiter.get_monthly_remaining(user_id)
     stats = rate_limiter.get_stats(user_id)
     plan_names = {"free": "🆓", "vip": "⭐", "premium": "👑"}
     plan_icon = plan_names.get(stats.get("plan", "free"), "🆓")
     
     await message.answer(
-        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Сегодня: {daily_remaining} видео {plan_icon}",
+        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Осталось (30 дн.): {monthly_remaining} видео {plan_icon}",
         reply_markup=get_video_keyboard(short_id, user_id)
     )
 
@@ -1915,21 +1905,12 @@ async def cb_process(callback: CallbackQuery):
     if not can_process:
         if reason == "soft_block":
             await callback.answer(get_text(user_id, "soft_block"), show_alert=True)
-        elif reason == "daily_limit":
+        elif reason == "monthly_limit":
             stats = rate_limiter.get_stats(user_id)
             await callback.answer(
-                get_text(user_id, "daily_limit_reached",
-                    used=stats.get("daily_videos", 0),
-                    limit=stats.get("daily_limit", 2)
-                ), 
-                show_alert=True
-            )
-        elif reason == "weekly_limit":
-            stats = rate_limiter.get_stats(user_id)
-            await callback.answer(
-                get_text(user_id, "weekly_limit_reached",
-                    used=stats.get("weekly_videos", 0),
-                    limit=stats.get("weekly_limit", 14)
+                get_text(user_id, "monthly_limit_reached",
+                    used=stats.get("monthly_videos", 0),
+                    limit=stats.get("monthly_limit", 3)
                 ), 
                 show_alert=True
             )
@@ -2380,21 +2361,12 @@ async def cb_url_download(callback: CallbackQuery):
     # Проверка лимита
     can_process, reason = rate_limiter.check_rate_limit(user_id)
     if not can_process:
-        if reason == "daily_limit":
+        if reason == "monthly_limit":
             stats = rate_limiter.get_stats(user_id)
             await callback.answer(
-                get_text(user_id, "daily_limit_reached",
-                    used=stats.get("daily_videos", 0),
-                    limit=stats.get("daily_limit", 2)
-                ),
-                show_alert=True
-            )
-        elif reason == "weekly_limit":
-            stats = rate_limiter.get_stats(user_id)
-            await callback.answer(
-                get_text(user_id, "weekly_limit_reached",
-                    used=stats.get("weekly_videos", 0),
-                    limit=stats.get("weekly_limit", 14)
+                get_text(user_id, "monthly_limit_reached",
+                    used=stats.get("monthly_videos", 0),
+                    limit=stats.get("monthly_limit", 3)
                 ),
                 show_alert=True
             )
@@ -2488,21 +2460,12 @@ async def cb_url_process(callback: CallbackQuery):
     # Проверка лимита
     can_process, reason = rate_limiter.check_rate_limit(user_id)
     if not can_process:
-        if reason == "daily_limit":
+        if reason == "monthly_limit":
             stats = rate_limiter.get_stats(user_id)
             await callback.answer(
-                get_text(user_id, "daily_limit_reached",
-                    used=stats.get("daily_videos", 0),
-                    limit=stats.get("daily_limit", 2)
-                ),
-                show_alert=True
-            )
-        elif reason == "weekly_limit":
-            stats = rate_limiter.get_stats(user_id)
-            await callback.answer(
-                get_text(user_id, "weekly_limit_reached",
-                    used=stats.get("weekly_videos", 0),
-                    limit=stats.get("weekly_limit", 14)
+                get_text(user_id, "monthly_limit_reached",
+                    used=stats.get("monthly_videos", 0),
+                    limit=stats.get("monthly_limit", 3)
                 ),
                 show_alert=True
             )

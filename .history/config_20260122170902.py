@@ -452,20 +452,17 @@ TEXTS_EN = {
     "queue_full": "🔄 Too many requests. Try in a minute.",
     "duplicate": "🔁 This video is already processing",
     "soft_block": "⏱ Too many requests. Try in 30 minutes.",
-    "daily_limit_reached": "⚠️ Daily limit reached ({used}/{limit}).\n\n💎 Get VIP/Premium for more!",
-    "weekly_limit_reached": "⚠️ Weekly limit reached ({used}/{limit}).\n\n💎 Get VIP/Premium for more!",
     "stats": (
         "📊 <b>Your Statistics</b>\n\n"
         "📋 Plan: <b>{plan}</b>\n"
-        "📅 Today: <b>{daily_videos}/{daily_limit}</b>\n"
-        "📆 Week: <b>{weekly_videos}/{weekly_limit}</b>\n\n"
-        "🎬 Total processed: <b>{total_videos}</b>\n"
+        "🎬 Videos (30 days): <b>{monthly_videos}/{monthly_limit}</b> (left: {monthly_remaining})\n"
+        "📈 Total processed: <b>{total_videos}</b>\n"
         "⬇️ Downloads: <b>{total_downloads}</b>\n\n"
         "🔥 Mode: <b>{mode}</b>\n"
         "🎚 Quality: <b>{quality}</b>\n"
         "📝 Text: <b>{text_overlay}</b>"
     ),
-    "monthly_limit_reached": "⚠️ Limit reached ({used}/{limit} videos per week).\n\n💎 Get VIP or Premium for more!",
+    "monthly_limit_reached": "⚠️ Limit reached ({used}/{limit} videos per 30 days).\n\n💎 Get VIP or Premium for more!",
     "buy_premium": (
         "� <b>Pricing Plans</b>\n\n"
         "🆓 <b>FREE</b> — free\n"

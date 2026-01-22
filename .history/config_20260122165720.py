@@ -124,35 +124,24 @@ SHORT_ID_TTL_SECONDS = 3600
 
 @dataclass
 class PlanLimits:
-    videos_per_day: int = 2           # Видео в день
-    videos_per_week: int = 14         # Видео в неделю
+    videos_per_month: int = 3         # Видео на 30 дней
     cooldown_seconds: int = 0
     max_file_size_mb: int = 100
     priority: int = 0
     can_disable_text: bool = False    # Может отключать текст
     quality_options: list = None      # Доступные качества
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PRICING / ЦЕНЫ
-# ══════════════════════════════════════════════════════════════════════════════
-# Free:    $0       - 2 видео/день
-# VIP:     $5/нед   - 100 видео/неделя  ($18/мес, $90/6мес, $150/год)
-# Premium: $9/нед   - ∞ безлимит        ($30/мес, $150/6мес, $250/год)
-# ══════════════════════════════════════════════════════════════════════════════
-
 PLAN_LIMITS: Dict[str, PlanLimits] = {
     "free": PlanLimits(
-        videos_per_day=2,             # 2 видео в день
-        videos_per_week=14,           # ~14 в неделю
-        cooldown_seconds=60,
+        videos_per_month=3,           # 3 видео на 30 дней
+        cooldown_seconds=30,
         max_file_size_mb=50,
         priority=0,
         can_disable_text=False,
         quality_options=["low", "medium"],
     ),
     "vip": PlanLimits(
-        videos_per_day=15,            # 15 видео в день
-        videos_per_week=100,          # 100 видео в неделю
+        videos_per_month=30,          # 30 видео на 30 дней
         cooldown_seconds=10,
         max_file_size_mb=100,
         priority=1,
@@ -160,8 +149,7 @@ PLAN_LIMITS: Dict[str, PlanLimits] = {
         quality_options=["low", "medium", "max"],
     ),
     "premium": PlanLimits(
-        videos_per_day=999999,        # Безлимит
-        videos_per_week=999999,       # Безлимит
+        videos_per_month=999999,      # Безлимит
         cooldown_seconds=0,
         max_file_size_mb=100,
         priority=2,
@@ -290,15 +278,13 @@ TEXTS = {
     "queue_full": "🔄 Сейчас много запросов. Попробуй через минуту.",
     "duplicate": "🔁 Это видео уже обрабатывается",
     "soft_block": "⏱ Слишком много запросов. Попробуй через 30 минут.",
-    "daily_limit_reached": "⚠️ Дневной лимит исчерпан ({used}/{limit}).\n\n💎 Купи VIP/Premium для большего!",
-    "weekly_limit_reached": "⚠️ Недельный лимит исчерпан ({used}/{limit}).\n\n💎 Купи VIP/Premium для большего!",
     "button_spam": "",
     "stats": (
         "📊 <b>Твоя статистика</b>\n\n"
         "📋 План: <b>{plan}</b>\n"
-        "📅 Сегодня: <b>{daily_videos}/{daily_limit}</b>\n"
-        "📆 Неделя: <b>{weekly_videos}/{weekly_limit}</b>\n\n"
-        "🎬 Обработано всего: <b>{total_videos}</b>\n"
+        "📈 Лимит (30 дней): <b>{monthly_videos}/{monthly_limit}</b>\n\n"
+        "🎬 Обработано видео: <b>{total_videos}</b>\n"
+        "📅 За сегодня: <b>{today_videos}</b>\n"
         "⏱ Последняя обработка: {last_time}\n\n"
         "🎯 Режим: <b>{mode}</b>\n"
         "🎚 Качество: <b>{quality}</b>\n"
@@ -330,22 +316,13 @@ TEXTS = {
     "text_disabled_premium": "📝 Отключение текста доступно только для VIP/Premium",
     "quality_locked": "🎚 Качество '{quality}' доступно только для VIP/Premium",
     "buy_premium": (
-        "� <b>Тарифные планы</b>\n\n"
-        "🆓 <b>FREE</b> — бесплатно\n"
-        "• 2 видео в день\n"
-        "• Стандартное качество\n\n"
-        "⭐ <b>VIP</b> — 100 видео/неделя\n"
-        "• $5/неделя\n"
-        "• $18/месяц\n"
-        "• $90/6 месяцев\n"
-        "• $150/год\n\n"
-        "👑 <b>PREMIUM</b> — безлимит\n"
-        "• $9/неделя\n"
-        "• $30/месяц\n"
-        "• $150/6 месяцев\n"
-        "• $250/год\n\n"
-        "✅ VIP/Premium: макс. качество, без текста\n\n"
-        "💬 Для покупки: @Null7_x"
+        "💎 <b>Получи Premium!</b>\n\n"
+        "✅ <b>30 видео</b> в месяц (вместо 3)\n"
+        "✅ <b>Максимальное качество</b> обработки\n"
+        "✅ <b>Отключение текста</b> на видео\n"
+        "✅ <b>Минимальный cooldown</b>\n\n"
+        "💵 <b>Цена: $3/месяц</b>\n\n"
+        "💬 Для покупки напиши: @Null7_x"
     ),
     "banned": "🚫 Вы заблокированы.\nПричина: {reason}",
     "referral_info": (
@@ -452,37 +429,25 @@ TEXTS_EN = {
     "queue_full": "🔄 Too many requests. Try in a minute.",
     "duplicate": "🔁 This video is already processing",
     "soft_block": "⏱ Too many requests. Try in 30 minutes.",
-    "daily_limit_reached": "⚠️ Daily limit reached ({used}/{limit}).\n\n💎 Get VIP/Premium for more!",
-    "weekly_limit_reached": "⚠️ Weekly limit reached ({used}/{limit}).\n\n💎 Get VIP/Premium for more!",
     "stats": (
         "📊 <b>Your Statistics</b>\n\n"
         "📋 Plan: <b>{plan}</b>\n"
-        "📅 Today: <b>{daily_videos}/{daily_limit}</b>\n"
-        "📆 Week: <b>{weekly_videos}/{weekly_limit}</b>\n\n"
-        "🎬 Total processed: <b>{total_videos}</b>\n"
+        "🎬 Videos (30 days): <b>{monthly_videos}/{monthly_limit}</b> (left: {monthly_remaining})\n"
+        "📈 Total processed: <b>{total_videos}</b>\n"
         "⬇️ Downloads: <b>{total_downloads}</b>\n\n"
         "🔥 Mode: <b>{mode}</b>\n"
         "🎚 Quality: <b>{quality}</b>\n"
         "📝 Text: <b>{text_overlay}</b>"
     ),
-    "monthly_limit_reached": "⚠️ Limit reached ({used}/{limit} videos per week).\n\n💎 Get VIP or Premium for more!",
+    "monthly_limit_reached": "⚠️ Limit reached ({used}/{limit} videos per 30 days).\n\n💎 Get VIP or Premium for more!",
     "buy_premium": (
-        "� <b>Pricing Plans</b>\n\n"
-        "🆓 <b>FREE</b> — free\n"
-        "• 2 videos per day\n"
-        "• Standard quality\n\n"
-        "⭐ <b>VIP</b> — 100 videos/week\n"
-        "• $5/week\n"
-        "• $18/month\n"
-        "• $90/6 months\n"
-        "• $150/year\n\n"
-        "👑 <b>PREMIUM</b> — unlimited\n"
-        "• $9/week\n"
-        "• $30/month\n"
-        "• $150/6 months\n"
-        "• $250/year\n\n"
-        "✅ VIP/Premium: max quality, no watermark\n\n"
-        "💬 To purchase: @Null7_x"
+        "💎 <b>Get Premium!</b>\n\n"
+        "✅ <b>30 videos</b> per month (instead of 3)\n"
+        "✅ <b>Maximum quality</b> processing\n"
+        "✅ <b>Disable text</b> on video\n"
+        "✅ <b>Minimum cooldown</b>\n\n"
+        "💵 <b>Price: $3/month</b>\n\n"
+        "💬 To purchase write: @Null7_x"
     ),
     "banned": "🚫 You are banned.\nReason: {reason}",
     "referral_info": (
@@ -580,7 +545,7 @@ BUTTONS_EN = {
     "text_on": "📝 Text: ON",
     "text_off": "📝 Text: OFF",
     "stats": "📊 My Statistics",
-    "buy_premium": "� Pricing Plans",
+    "buy_premium": "💎 Buy Premium — $3",
     "main_menu": "🏠 Main Menu",
     "referral": "👥 Referrals",
     "language": "🌐 Language",
@@ -612,7 +577,7 @@ BUTTONS = {
     "text_on": "📝 Текст: ВКЛ",
     "text_off": "📝 Текст: ВЫКЛ",
     "stats": "📊 Моя статистика",
-    "buy_premium": "� Тарифы и цены",
+    "buy_premium": "💎 Купить Premium — $3",
     "main_menu": "🏠 Главное меню",
     "update_ytdlp": "🔄 Обновить yt-dlp",
     "admin_stats": "📊 Глобальная статистика",

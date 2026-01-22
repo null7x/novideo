@@ -149,17 +149,10 @@ class RateLimiter:
         if self.is_soft_blocked(user_id):
             return False, "soft_block"
         
-        # Сбрасываем счётчики если нужно
-        self._reset_daily_if_needed(user_id)
-        self._reset_weekly_if_needed(user_id)
-        
-        # Проверка дневного лимита
-        if user.daily_videos >= limits.videos_per_day:
-            return False, "daily_limit"
-        
-        # Проверка недельного лимита
-        if user.weekly_videos >= limits.videos_per_week:
-            return False, "weekly_limit"
+        # Проверка месячного лимита (30 дней)
+        self._reset_monthly_if_needed(user_id)
+        if user.monthly_videos >= limits.videos_per_month:
+            return False, "monthly_limit"
         
         # Проверка cooldown
         if user.last_request_time > 0:
@@ -169,38 +162,6 @@ class RateLimiter:
                 return False, f"cooldown:{remaining}"
         
         return True, None
-    
-    def _reset_daily_if_needed(self, user_id: int):
-        """ Сброс дневного счётчика """
-        import datetime
-        user = self.get_user(user_id)
-        today = datetime.date.today().isoformat()
-        
-        if user.daily_date != today:
-            user.daily_date = today
-            user.daily_videos = 0
-    
-    def _reset_weekly_if_needed(self, user_id: int):
-        """ Сброс недельного счётчика (каждые 7 дней) """
-        import datetime
-        user = self.get_user(user_id)
-        today = datetime.date.today()
-        
-        if not user.week_start:
-            user.week_start = today.isoformat()
-            user.weekly_videos = 0
-            return
-        
-        try:
-            week_start_date = datetime.date.fromisoformat(user.week_start)
-            days_passed = (today - week_start_date).days
-            
-            if days_passed >= 7:
-                user.week_start = today.isoformat()
-                user.weekly_videos = 0
-        except:
-            user.week_start = today.isoformat()
-            user.weekly_videos = 0
     
     def _reset_monthly_if_needed(self, user_id: int):
         """ Сброс счётчика если прошло 30 дней """
@@ -224,23 +185,12 @@ class RateLimiter:
             user.period_start = today.isoformat()
             user.monthly_videos = 0
     
-    def get_daily_remaining(self, user_id: int) -> int:
-        """ Осталось видео сегодня """
-        self._reset_daily_if_needed(user_id)
-        user = self.get_user(user_id)
-        limits = self.get_limits(user_id)
-        return max(0, limits.videos_per_day - user.daily_videos)
-    
-    def get_weekly_remaining(self, user_id: int) -> int:
-        """ Осталось видео на эту неделю """
-        self._reset_weekly_if_needed(user_id)
-        user = self.get_user(user_id)
-        limits = self.get_limits(user_id)
-        return max(0, limits.videos_per_week - user.weekly_videos)
-    
     def get_monthly_remaining(self, user_id: int) -> int:
-        """ Осталось видео на 30 дней (для совместимости) """
-        return self.get_weekly_remaining(user_id)
+        """ Осталось видео на 30 дней """
+        self._reset_monthly_if_needed(user_id)
+        user = self.get_user(user_id)
+        limits = self.get_limits(user_id)
+        return max(0, limits.videos_per_month - user.monthly_videos)
     
     def check_duplicate_file(self, user_id: int, file_unique_id: str) -> bool:
         user = self.get_user(user_id)
@@ -351,13 +301,7 @@ class RateLimiter:
         user.today_videos += 1
         user.last_process_time = time.time()
         
-        # Дневной и недельный счётчики
-        self._reset_daily_if_needed(user_id)
-        self._reset_weekly_if_needed(user_id)
-        user.daily_videos += 1
-        user.weekly_videos += 1
-        
-        # Месячный счётчик (для совместимости)
+        # Месячный счётчик
         self._reset_monthly_if_needed(user_id)
         user.monthly_videos += 1
     
@@ -373,22 +317,15 @@ class RateLimiter:
             user.today_date = today
             user.today_videos = 0
         
-        # Сброс счётчиков
-        self._reset_daily_if_needed(user_id)
-        self._reset_weekly_if_needed(user_id)
+        # Сброс месячного счётчика
+        self._reset_monthly_if_needed(user_id)
         
         return {
             "total_videos": user.total_videos,
             "today_videos": user.today_videos,
-            "daily_videos": user.daily_videos,
-            "daily_limit": limits.videos_per_day,
-            "daily_remaining": max(0, limits.videos_per_day - user.daily_videos),
-            "weekly_videos": user.weekly_videos,
-            "weekly_limit": limits.videos_per_week,
-            "weekly_remaining": max(0, limits.videos_per_week - user.weekly_videos),
             "monthly_videos": user.monthly_videos,
-            "monthly_limit": limits.videos_per_week,  # Используем недельный для совместимости
-            "monthly_remaining": max(0, limits.videos_per_week - user.weekly_videos),
+            "monthly_limit": limits.videos_per_month,
+            "monthly_remaining": max(0, limits.videos_per_month - user.monthly_videos),
             "last_process_time": user.last_process_time,
             "mode": user.mode,
             "quality": user.quality,
