@@ -15,7 +15,7 @@ BOT_VERSION = "3.0.0"
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Токен из переменной окружения или fallback для тестирования
-_DEFAULT_TOKEN = "8270727558:AAHt1m_VBB9u6iVZl777qfURuD5YO6gzDZo"
+_DEFAULT_TOKEN = "8378884448:AAHTaUGA7JDJx5uEcI_On-cKUP6lRl6pB0A"
 BOT_TOKEN = os.getenv("BOT_TOKEN", _DEFAULT_TOKEN).strip()
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is required!")
