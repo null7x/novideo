@@ -112,7 +112,6 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
-            [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
     else:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -122,7 +121,6 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
-            [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
 
 def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
@@ -285,46 +283,6 @@ async def notify_admin_new_user(user):
                 pass
     except Exception as e:
         logger.error(f"Notify admin error: {e}")
-
-
-async def notify_admin_error(error_type: str, details: str, user_id: int = None):
-    """ Уведомить админов о критической ошибке """
-    try:
-        username = rate_limiter.get_username(user_id) if user_id else "N/A"
-        text = (
-            f"🚨 <b>Ошибка: {error_type}</b>\n\n"
-            f"👤 User: @{username} (ID: {user_id})\n"
-            f"📝 Детали: <code>{details[:500]}</code>"
-        )
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                await bot.send_message(admin_id, text)
-            except:
-                pass
-    except Exception as e:
-        logger.error(f"Notify admin error failed: {e}")
-
-
-async def check_expiring_subscriptions():
-    """ Проверить и уведомить об истекающих подписках """
-    try:
-        expiring = rate_limiter.get_expiring_users(days_before=3)
-        for user in expiring:
-            user_id = user.get('user_id')
-            plan = user.get('plan')
-            days_left = user.get('days_left')
-            
-            # Проверяем, не уведомляли ли уже
-            if rate_limiter.should_notify_expiry(user_id):
-                try:
-                    text = get_text(user_id, 'plan_expiring', plan=plan, days=days_left)
-                    await bot.send_message(user_id, text)
-                    rate_limiter.mark_expiry_notified(user_id)
-                except Exception:
-                    pass
-    except Exception as e:
-        logger.error(f"Check expiring error: {e}")
 
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
@@ -1218,6 +1176,47 @@ async def cb_admin_back(callback: CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(F.data == "admin_commands")
+async def cb_admin_commands(callback: CallbackQuery):
+    """ Список всех админских команд """
+    if not is_admin(callback.from_user):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    
+    text = (
+        "📝 <b>Команды администратора</b>\n\n"
+        "<b>👤 Управление пользователями:</b>\n"
+        "• <code>/userinfo ID/@username</code> — инфо о пользователе\n"
+        "• <code>/vip ID/@username</code> — выдать VIP на 30 дней\n"
+        "• <code>/premium ID/@username</code> — выдать Premium на 30 дней\n"
+        "• <code>/removeplan ID/@username</code> — убрать подписку\n"
+        "• <code>/ban ID/@username причина</code> — заблокировать\n"
+        "• <code>/unban ID/@username</code> — разблокировать\n\n"
+        "<b>🎟 Промо-коды:</b>\n"
+        "• <code>/createpromo КОД тип значение [макс]</code>\n"
+        "  Типы: videos, vip_days, premium_days\n"
+        "• <code>/deletepromo КОД</code> — удалить промо-код\n"
+        "• <code>/listpromo</code> — список промо-кодов\n\n"
+        "<b>📢 Рассылка:</b>\n"
+        "• <code>/broadcast текст</code> — рассылка всем\n\n"
+        "<b>📊 Статистика:</b>\n"
+        "• <code>/globalstats</code> — глобальная статистика\n"
+        "• <code>/checkexpiry</code> — истекающие подписки\n\n"
+        "<b>🔧 Система:</b>\n"
+        "• <code>/update_ytdlp</code> — обновить yt-dlp\n"
+        "• <code>/admin</code> — открыть админ-панель\n\n"
+        "<b>ℹ️ Другое:</b>\n"
+        "• <code>/myid</code> — узнать свой ID\n"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="« Назад", callback_data="admin_back")]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
 @dp.callback_query(F.data == "admin_sources")
 async def cb_admin_sources(callback: CallbackQuery):
     """ Статистика по источникам """
@@ -1451,84 +1450,6 @@ async def cb_how_it_works(callback: CallbackQuery):
         reply_markup=get_how_it_works_keyboard(user_id)
     )
     await callback.answer()
-
-
-@dp.callback_query(F.data == "help")
-async def cb_help(callback: CallbackQuery):
-    """ FAQ и помощь """
-    if rate_limiter.check_button_spam(callback.from_user.id):
-        await callback.answer()
-        return
-    
-    user_id = callback.from_user.id
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Сообщить о проблеме", callback_data="report_issue")],
-        [InlineKeyboardButton(text="💬 Поддержка @Null7_x", url="https://t.me/Null7_x")],
-        [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="back_to_start")],
-    ])
-    
-    await callback.message.edit_text(
-        get_text(user_id, "help_faq"),
-        reply_markup=keyboard
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "report_issue")
-async def cb_report_issue(callback: CallbackQuery):
-    """ Сообщить о проблеме """
-    user_id = callback.from_user.id
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Видео не скачивается", callback_data="issue_download")],
-        [InlineKeyboardButton(text="⚠️ Ошибка обработки", callback_data="issue_processing")],
-        [InlineKeyboardButton(text="🐛 Другая проблема", callback_data="issue_other")],
-        [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="help")],
-    ])
-    
-    await callback.message.edit_text(
-        get_text(user_id, "report_issue"),
-        reply_markup=keyboard
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("issue_"))
-async def cb_issue(callback: CallbackQuery):
-    """ Обработка типа проблемы """
-    user_id = callback.from_user.id
-    issue_type = callback.data.split("_", 1)[1]
-    
-    issue_names = {
-        "download": "Видео не скачивается",
-        "processing": "Ошибка обработки",
-        "other": "Другая проблема"
-    }
-    
-    # Уведомляем админов
-    username = rate_limiter.get_username(user_id) or str(user_id)
-    text = (
-        f"📩 <b>Новый репорт!</b>\n\n"
-        f"👤 @{username} (ID: {user_id})\n"
-        f"⚠️ Тип: {issue_names.get(issue_type, issue_type)}\n"
-        f"📅 Время: {time_module.strftime('%d.%m.%Y %H:%M')}"
-    )
-    
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(admin_id, text)
-        except:
-            pass
-    
-    await callback.message.edit_text(
-        get_text(user_id, "issue_reported"),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=get_button(user_id, "main_menu"), callback_data="back_to_start")]
-        ])
-    )
-    await callback.answer("✅ Отправлено!", show_alert=True)
-
 
 @dp.callback_query(F.data == "back_to_start")
 async def cb_back_to_start(callback: CallbackQuery):
@@ -2441,34 +2362,10 @@ async def handle_other(message: Message):
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def on_startup():
-    # Автоматическое обновление yt-dlp при старте (в фоне)
-    asyncio.create_task(auto_update_ytdlp())
     await start_workers()
     cleanup_old_files()
     cleanup_short_id_map()
     logger.info("Virex started")
-
-
-async def auto_update_ytdlp():
-    """ Автоматическое обновление yt-dlp в фоне """
-    try:
-        import subprocess
-        loop = asyncio.get_event_loop()
-        
-        def update():
-            result = subprocess.run(
-                ["pip", "install", "-U", "yt-dlp"],
-                capture_output=True, text=True, timeout=120
-            )
-            return result.returncode == 0
-        
-        success = await loop.run_in_executor(None, update)
-        if success:
-            logger.info("[YT-DLP] Auto-updated successfully")
-        else:
-            logger.warning("[YT-DLP] Auto-update failed")
-    except Exception as e:
-        logger.error(f"[YT-DLP] Auto-update error: {e}")
 
 async def periodic_cleanup():
     """ Периодическая очистка """
@@ -2476,17 +2373,6 @@ async def periodic_cleanup():
         await asyncio.sleep(600)  # каждые 10 минут
         cleanup_short_id_map()
         cleanup_old_files()
-
-
-async def periodic_expiry_check():
-    """ Проверка истекающих подписок раз в день """
-    while True:
-        await asyncio.sleep(86400)  # раз в 24 часа
-        try:
-            await check_expiring_subscriptions()
-        except Exception as e:
-            logger.error(f"Expiry check error: {e}")
-
 
 async def on_shutdown():
     """ Graceful shutdown """
@@ -2498,7 +2384,6 @@ async def on_shutdown():
 async def main():
     await on_startup()
     asyncio.create_task(periodic_cleanup())
-    asyncio.create_task(periodic_expiry_check())
     try:
         await dp.start_polling(bot)
     finally:

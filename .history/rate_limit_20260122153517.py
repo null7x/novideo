@@ -358,23 +358,11 @@ class RateLimiter:
     
     def get_global_stats(self) -> dict:
         """ Глобальная статистика """
-        import datetime
         total_users = len(self.users)
         total_videos = sum(u.total_videos for u in self.users.values())
         total_downloads = sum(u.total_downloads for u in self.users.values())
         vip_users = sum(1 for u in self.users.values() if u.plan == "vip")
         premium_users = sum(1 for u in self.users.values() if u.plan == "premium")
-        free_users = sum(1 for u in self.users.values() if u.plan == "free")
-        
-        # Активные сегодня
-        today = datetime.date.today().isoformat()
-        active_today = sum(1 for u in self.users.values() if u.today_date == today)
-        
-        # Языки
-        languages = {}
-        for u in self.users.values():
-            lang = u.language or "ru"
-            languages[lang] = languages.get(lang, 0) + 1
         
         return {
             "total_users": total_users,
@@ -382,13 +370,6 @@ class RateLimiter:
             "total_downloads": total_downloads,
             "vip_users": vip_users,
             "premium_users": premium_users,
-            "active_today": active_today,
-            "plans": {
-                "free": free_users,
-                "vip": vip_users,
-                "premium": premium_users,
-            },
-            "languages": languages,
         }
     
     # ═════════════════════════════════════════════════════════════
@@ -579,24 +560,6 @@ class RateLimiter:
                 except:
                     pass
         return result
-    
-    def should_notify_expiry(self, user_id: int) -> bool:
-        """ Проверить, нужно ли уведомлять об истечении """
-        import datetime
-        user = self.get_user(user_id)
-        today = datetime.date.today().isoformat()
-        
-        # Уведомляем только раз в день
-        if user.expiry_notified == today:
-            return False
-        return True
-    
-    def mark_expiry_notified(self, user_id: int):
-        """ Отметить, что уведомление отправлено """
-        import datetime
-        user = self.get_user(user_id)
-        user.expiry_notified = datetime.date.today().isoformat()
-        self.save_data()
     
     def get_all_users(self) -> list:
         """ Получить список всех ID пользователей """

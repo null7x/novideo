@@ -59,8 +59,6 @@ class UserState:
     referral_bonus: int = 0  # Бонусные видео
     # Дата окончания VIP/Premium
     plan_expires: str = ""  # ISO дата окончания
-    # Уведомление об истечении
-    expiry_notified: str = ""  # Дата последнего уведомления
 
 class RateLimiter:
     def __init__(self):
@@ -358,23 +356,11 @@ class RateLimiter:
     
     def get_global_stats(self) -> dict:
         """ Глобальная статистика """
-        import datetime
         total_users = len(self.users)
         total_videos = sum(u.total_videos for u in self.users.values())
         total_downloads = sum(u.total_downloads for u in self.users.values())
         vip_users = sum(1 for u in self.users.values() if u.plan == "vip")
         premium_users = sum(1 for u in self.users.values() if u.plan == "premium")
-        free_users = sum(1 for u in self.users.values() if u.plan == "free")
-        
-        # Активные сегодня
-        today = datetime.date.today().isoformat()
-        active_today = sum(1 for u in self.users.values() if u.today_date == today)
-        
-        # Языки
-        languages = {}
-        for u in self.users.values():
-            lang = u.language or "ru"
-            languages[lang] = languages.get(lang, 0) + 1
         
         return {
             "total_users": total_users,
@@ -382,13 +368,6 @@ class RateLimiter:
             "total_downloads": total_downloads,
             "vip_users": vip_users,
             "premium_users": premium_users,
-            "active_today": active_today,
-            "plans": {
-                "free": free_users,
-                "vip": vip_users,
-                "premium": premium_users,
-            },
-            "languages": languages,
         }
     
     # ═════════════════════════════════════════════════════════════
@@ -579,24 +558,6 @@ class RateLimiter:
                 except:
                     pass
         return result
-    
-    def should_notify_expiry(self, user_id: int) -> bool:
-        """ Проверить, нужно ли уведомлять об истечении """
-        import datetime
-        user = self.get_user(user_id)
-        today = datetime.date.today().isoformat()
-        
-        # Уведомляем только раз в день
-        if user.expiry_notified == today:
-            return False
-        return True
-    
-    def mark_expiry_notified(self, user_id: int):
-        """ Отметить, что уведомление отправлено """
-        import datetime
-        user = self.get_user(user_id)
-        user.expiry_notified = datetime.date.today().isoformat()
-        self.save_data()
     
     def get_all_users(self) -> list:
         """ Получить список всех ID пользователей """
@@ -790,127 +751,5 @@ class RateLimiter:
             "languages": languages,
             "promo_codes": len(self.get_promo_codes()),
         }
-    
-    # ═════════════════════════════════════════════════════════════
-    # BACKUP / RESTORE
-    # ═════════════════════════════════════════════════════════════
-    
-    def export_backup(self) -> str:
-        """ Экспортировать все данные в JSON строку """
-        import json
-        import datetime
-        
-        backup = {
-            "version": "1.0",
-            "created": datetime.datetime.now().isoformat(),
-            "users": {},
-            "promo_codes": self._promo_codes
-        }
-        
-        for uid, user in self.users.items():
-            backup["users"][str(uid)] = {
-                "plan": user.plan,
-                "mode": user.mode,
-                "total_videos": user.total_videos,
-                "monthly_videos": user.monthly_videos,
-                "period_start": user.period_start,
-                "username": user.username,
-                "total_downloads": user.total_downloads,
-                "monthly_downloads": user.monthly_downloads,
-                "first_seen": user.first_seen,
-                "quality": user.quality,
-                "text_overlay": user.text_overlay,
-                "banned": user.banned,
-                "ban_reason": user.ban_reason,
-                "language": user.language,
-                "referrer_id": user.referrer_id,
-                "referral_count": user.referral_count,
-                "referral_bonus": user.referral_bonus,
-                "plan_expires": user.plan_expires,
-                "history": getattr(user, 'history', []),
-            }
-        
-        return json.dumps(backup, ensure_ascii=False, indent=2)
-    
-    def import_backup(self, json_data: str) -> tuple:
-        """ 
-        Импортировать данные из JSON. 
-        Возвращает (success, message)
-        """
-        import json
-        
-        try:
-            backup = json.loads(json_data)
-            
-            if "users" not in backup:
-                return False, "Invalid backup format"
-            
-            users_imported = 0
-            for uid, udata in backup["users"].items():
-                user = self.get_user(int(uid))
-                for key, value in udata.items():
-                    if hasattr(user, key):
-                        setattr(user, key, value)
-                users_imported += 1
-            
-            # Импортируем промо-коды если есть
-            if "promo_codes" in backup:
-                self._promo_codes.update(backup["promo_codes"])
-                self._save_promo_codes()
-            
-            self.save_data()
-            return True, f"Imported {users_imported} users"
-        except json.JSONDecodeError:
-            return False, "Invalid JSON"
-        except Exception as e:
-            return False, str(e)
-    
-    # ═════════════════════════════════════════════════════════════
-    # SOURCE STATS
-    # ═════════════════════════════════════════════════════════════
-    
-    def get_source_stats(self) -> dict:
-        """ Статистика по источникам видео """
-        sources = {
-            "file": 0,
-            "tiktok": 0,
-            "youtube": 0,
-            "instagram": 0,
-            "chinese": 0,
-            "url": 0,
-        }
-        
-        for user in self.users.values():
-            history = getattr(user, 'history', [])
-            for entry in history:
-                source = entry.get("source", "unknown")
-                if source in sources:
-                    sources[source] += 1
-                else:
-                    sources["url"] += 1
-        
-        return sources
-    
-    # ═════════════════════════════════════════════════════════════
-    # NEW USER CHECK
-    # ═════════════════════════════════════════════════════════════
-    
-    def is_new_user(self, user_id: int) -> bool:
-        """ Проверить, новый ли это пользователь """
-        user = self.get_user(user_id)
-        if not user.admin_notified:
-            user.admin_notified = True
-            return True
-        return False
-    
-    def get_user_count_for_queue(self, user_id: int) -> int:
-        """ Посчитать сколько задач юзера в очереди """
-        # Используется в связке с active_tasks из ffmpeg_utils
-        count = 0
-        from ffmpeg_utils import active_tasks
-        for task_id, task in active_tasks.items():
-            if task.user_id == user_id:
-                count += 1
-        return count
 
 rate_limiter = RateLimiter()

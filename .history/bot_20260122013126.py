@@ -28,8 +28,7 @@ from rate_limit import rate_limiter
 from ffmpeg_utils import (
     start_workers, add_to_queue, ProcessingTask,
     get_temp_dir, generate_unique_filename, cleanup_file,
-    cleanup_old_files, get_queue_size, cancel_task, get_user_task,
-    get_user_queue_count
+    cleanup_old_files, get_queue_size, cancel_task, get_user_task
 )
 import time as time_module
 
@@ -112,7 +111,6 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
-            [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
     else:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -122,7 +120,6 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
-            [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
 
 def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
@@ -156,9 +153,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     # Показываем кнопку купить только для free пользователей
     plan = rate_limiter.get_plan(user_id)
     
-    # Получаем username для проверки админа
-    username = rate_limiter.get_user(user_id).username
-    
     buttons = [
         [
             InlineKeyboardButton(text=q_low, callback_data="quality_low"),
@@ -180,8 +174,8 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton(text=get_button(user_id, "buy_premium"), callback_data="buy_premium")])
     
     # Кнопка Админ только для администраторов
-    is_user_admin = user_id in ADMIN_IDS or (username and username.lower() in [u.lower() for u in ADMIN_USERNAMES])
-    if is_user_admin:
+    from aiogram.types import User
+    if user_id in ADMIN_IDS:
         buttons.append([InlineKeyboardButton(text="🔧 Админ", callback_data="open_admin")])
     
     buttons.append([InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="back_to_start")])
@@ -285,46 +279,6 @@ async def notify_admin_new_user(user):
                 pass
     except Exception as e:
         logger.error(f"Notify admin error: {e}")
-
-
-async def notify_admin_error(error_type: str, details: str, user_id: int = None):
-    """ Уведомить админов о критической ошибке """
-    try:
-        username = rate_limiter.get_username(user_id) if user_id else "N/A"
-        text = (
-            f"🚨 <b>Ошибка: {error_type}</b>\n\n"
-            f"👤 User: @{username} (ID: {user_id})\n"
-            f"📝 Детали: <code>{details[:500]}</code>"
-        )
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                await bot.send_message(admin_id, text)
-            except:
-                pass
-    except Exception as e:
-        logger.error(f"Notify admin error failed: {e}")
-
-
-async def check_expiring_subscriptions():
-    """ Проверить и уведомить об истекающих подписках """
-    try:
-        expiring = rate_limiter.get_expiring_users(days_before=3)
-        for user in expiring:
-            user_id = user.get('user_id')
-            plan = user.get('plan')
-            days_left = user.get('days_left')
-            
-            # Проверяем, не уведомляли ли уже
-            if rate_limiter.should_notify_expiry(user_id):
-                try:
-                    text = get_text(user_id, 'plan_expiring', plan=plan, days=days_left)
-                    await bot.send_message(user_id, text)
-                    rate_limiter.mark_expiry_notified(user_id)
-                except Exception:
-                    pass
-    except Exception as e:
-        logger.error(f"Check expiring error: {e}")
 
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
@@ -1218,6 +1172,47 @@ async def cb_admin_back(callback: CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(F.data == "admin_commands")
+async def cb_admin_commands(callback: CallbackQuery):
+    """ Список всех админских команд """
+    if not is_admin(callback.from_user):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    
+    text = (
+        "📝 <b>Команды администратора</b>\n\n"
+        "<b>👤 Управление пользователями:</b>\n"
+        "• <code>/userinfo ID/@username</code> — инфо о пользователе\n"
+        "• <code>/vip ID/@username</code> — выдать VIP на 30 дней\n"
+        "• <code>/premium ID/@username</code> — выдать Premium на 30 дней\n"
+        "• <code>/removeplan ID/@username</code> — убрать подписку\n"
+        "• <code>/ban ID/@username причина</code> — заблокировать\n"
+        "• <code>/unban ID/@username</code> — разблокировать\n\n"
+        "<b>🎟 Промо-коды:</b>\n"
+        "• <code>/createpromo КОД тип значение [макс]</code>\n"
+        "  Типы: videos, vip_days, premium_days\n"
+        "• <code>/deletepromo КОД</code> — удалить промо-код\n"
+        "• <code>/listpromo</code> — список промо-кодов\n\n"
+        "<b>📢 Рассылка:</b>\n"
+        "• <code>/broadcast текст</code> — рассылка всем\n\n"
+        "<b>📊 Статистика:</b>\n"
+        "• <code>/globalstats</code> — глобальная статистика\n"
+        "• <code>/checkexpiry</code> — истекающие подписки\n\n"
+        "<b>🔧 Система:</b>\n"
+        "• <code>/update_ytdlp</code> — обновить yt-dlp\n"
+        "• <code>/admin</code> — открыть админ-панель\n\n"
+        "<b>ℹ️ Другое:</b>\n"
+        "• <code>/myid</code> — узнать свой ID\n"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="« Назад", callback_data="admin_back")]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
 @dp.callback_query(F.data == "admin_sources")
 async def cb_admin_sources(callback: CallbackQuery):
     """ Статистика по источникам """
@@ -1452,84 +1447,6 @@ async def cb_how_it_works(callback: CallbackQuery):
     )
     await callback.answer()
 
-
-@dp.callback_query(F.data == "help")
-async def cb_help(callback: CallbackQuery):
-    """ FAQ и помощь """
-    if rate_limiter.check_button_spam(callback.from_user.id):
-        await callback.answer()
-        return
-    
-    user_id = callback.from_user.id
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Сообщить о проблеме", callback_data="report_issue")],
-        [InlineKeyboardButton(text="💬 Поддержка @Null7_x", url="https://t.me/Null7_x")],
-        [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="back_to_start")],
-    ])
-    
-    await callback.message.edit_text(
-        get_text(user_id, "help_faq"),
-        reply_markup=keyboard
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "report_issue")
-async def cb_report_issue(callback: CallbackQuery):
-    """ Сообщить о проблеме """
-    user_id = callback.from_user.id
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Видео не скачивается", callback_data="issue_download")],
-        [InlineKeyboardButton(text="⚠️ Ошибка обработки", callback_data="issue_processing")],
-        [InlineKeyboardButton(text="🐛 Другая проблема", callback_data="issue_other")],
-        [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="help")],
-    ])
-    
-    await callback.message.edit_text(
-        get_text(user_id, "report_issue"),
-        reply_markup=keyboard
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("issue_"))
-async def cb_issue(callback: CallbackQuery):
-    """ Обработка типа проблемы """
-    user_id = callback.from_user.id
-    issue_type = callback.data.split("_", 1)[1]
-    
-    issue_names = {
-        "download": "Видео не скачивается",
-        "processing": "Ошибка обработки",
-        "other": "Другая проблема"
-    }
-    
-    # Уведомляем админов
-    username = rate_limiter.get_username(user_id) or str(user_id)
-    text = (
-        f"📩 <b>Новый репорт!</b>\n\n"
-        f"👤 @{username} (ID: {user_id})\n"
-        f"⚠️ Тип: {issue_names.get(issue_type, issue_type)}\n"
-        f"📅 Время: {time_module.strftime('%d.%m.%Y %H:%M')}"
-    )
-    
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(admin_id, text)
-        except:
-            pass
-    
-    await callback.message.edit_text(
-        get_text(user_id, "issue_reported"),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=get_button(user_id, "main_menu"), callback_data="back_to_start")]
-        ])
-    )
-    await callback.answer("✅ Отправлено!", show_alert=True)
-
-
 @dp.callback_query(F.data == "back_to_start")
 async def cb_back_to_start(callback: CallbackQuery):
     user_id = callback.from_user.id
@@ -1541,45 +1458,6 @@ async def cb_back_to_start(callback: CallbackQuery):
     mode = rate_limiter.get_mode(user_id)
     text = get_text(user_id, "start") if mode == Mode.TIKTOK else get_text(user_id, "start_youtube")
     await callback.message.edit_text(text, reply_markup=get_start_keyboard(mode, user_id))
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "open_admin")
-async def cb_open_admin(callback: CallbackQuery):
-    """ Открыть админ-панель через кнопку """
-    user_id = callback.from_user.id
-    
-    if not is_admin(callback.from_user):
-        await callback.answer("⛔ Нет доступа", show_alert=True)
-        return
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats"),
-            InlineKeyboardButton(text="👥 Пользователи", callback_data="admin_users"),
-        ],
-        [
-            InlineKeyboardButton(text="🎟 Промо-коды", callback_data="admin_promo"),
-            InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast"),
-        ],
-        [
-            InlineKeyboardButton(text="⏰ Истекающие", callback_data="admin_expiring"),
-            InlineKeyboardButton(text="📥 Очередь", callback_data="admin_queue"),
-        ],
-        [
-            InlineKeyboardButton(text="📈 Источники", callback_data="admin_sources"),
-            InlineKeyboardButton(text="💾 Backup", callback_data="admin_backup"),
-        ],
-        [
-            InlineKeyboardButton(text="🔄 Обновить yt-dlp", callback_data="admin_update_ytdlp"),
-            InlineKeyboardButton(text="🏥 Health", callback_data="admin_health"),
-        ],
-        [
-            InlineKeyboardButton(text="📝 Команды", callback_data="admin_commands"),
-        ],
-    ])
-    
-    await callback.message.edit_text("🔧 <b>Панель администратора</b>", reply_markup=keyboard)
     await callback.answer()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1859,13 +1737,6 @@ async def cb_process(callback: CallbackQuery):
         await callback.answer(get_text(user_id, "queue_full"), show_alert=True)
         return
     
-    # Лимит задач на одного пользователя (максимум 2)
-    user_queue_count = get_user_queue_count(user_id)
-    max_per_user = 3 if rate_limiter.get_plan(user_id) in ["vip", "premium"] else 2
-    if user_queue_count >= max_per_user:
-        await callback.answer(get_text(user_id, "user_queue_limit"), show_alert=True)
-        return
-    
     rate_limiter.register_request(user_id, file_unique_id)
     rate_limiter.set_processing(user_id, True, file_id)
     
@@ -1979,34 +1850,14 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
         
         import yt_dlp
         
-        # Определяем, YouTube ли это
-        is_youtube = any(d in url.lower() for d in ['youtube.com', 'youtu.be'])
-        
         ydl_opts = {
-            'format': 'best[ext=mp4][height<=1080]/best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best',
             'outtmpl': output_path,
             'quiet': True,
             'no_warnings': True,
             'max_filesize': MAX_FILE_SIZE_MB * 1024 * 1024,
-            'socket_timeout': 60,
-            'retries': 3,
-            'fragment_retries': 3,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-us,en;q=0.5',
-            },
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web'],
-                }
-            },
+            'socket_timeout': 30,
         }
-        
-        # Дополнительные опции для YouTube
-        if is_youtube:
-            ydl_opts['format'] = 'best[ext=mp4][height<=1080]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-            ydl_opts['merge_output_format'] = 'mp4'
         
         loop = asyncio.get_event_loop()
         
@@ -2015,7 +1866,7 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
                 ydl.download([url])
         
         await loop.run_in_executor(None, download)
-        return os.path.exists(output_path) and os.path.getsize(output_path) > 0
+        return os.path.exists(output_path)
         
     except Exception as e:
         logger.error(f"[YT-DLP] Error downloading {url}: {e}")
@@ -2441,34 +2292,10 @@ async def handle_other(message: Message):
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def on_startup():
-    # Автоматическое обновление yt-dlp при старте (в фоне)
-    asyncio.create_task(auto_update_ytdlp())
     await start_workers()
     cleanup_old_files()
     cleanup_short_id_map()
     logger.info("Virex started")
-
-
-async def auto_update_ytdlp():
-    """ Автоматическое обновление yt-dlp в фоне """
-    try:
-        import subprocess
-        loop = asyncio.get_event_loop()
-        
-        def update():
-            result = subprocess.run(
-                ["pip", "install", "-U", "yt-dlp"],
-                capture_output=True, text=True, timeout=120
-            )
-            return result.returncode == 0
-        
-        success = await loop.run_in_executor(None, update)
-        if success:
-            logger.info("[YT-DLP] Auto-updated successfully")
-        else:
-            logger.warning("[YT-DLP] Auto-update failed")
-    except Exception as e:
-        logger.error(f"[YT-DLP] Auto-update error: {e}")
 
 async def periodic_cleanup():
     """ Периодическая очистка """
@@ -2477,35 +2304,10 @@ async def periodic_cleanup():
         cleanup_short_id_map()
         cleanup_old_files()
 
-
-async def periodic_expiry_check():
-    """ Проверка истекающих подписок раз в день """
-    while True:
-        await asyncio.sleep(86400)  # раз в 24 часа
-        try:
-            await check_expiring_subscriptions()
-        except Exception as e:
-            logger.error(f"Expiry check error: {e}")
-
-
-async def on_shutdown():
-    """ Graceful shutdown """
-    logger.info("Shutting down...")
-    rate_limiter.save_data()
-    cleanup_old_files()
-    logger.info("Data saved, shutdown complete")
-
 async def main():
     await on_startup()
     asyncio.create_task(periodic_cleanup())
-    asyncio.create_task(periodic_expiry_check())
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await on_shutdown()
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+    asyncio.run(main())

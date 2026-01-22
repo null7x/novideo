@@ -1218,6 +1218,47 @@ async def cb_admin_back(callback: CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(F.data == "admin_commands")
+async def cb_admin_commands(callback: CallbackQuery):
+    """ Список всех админских команд """
+    if not is_admin(callback.from_user):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    
+    text = (
+        "📝 <b>Команды администратора</b>\n\n"
+        "<b>👤 Управление пользователями:</b>\n"
+        "• <code>/userinfo ID/@username</code> — инфо о пользователе\n"
+        "• <code>/vip ID/@username</code> — выдать VIP на 30 дней\n"
+        "• <code>/premium ID/@username</code> — выдать Premium на 30 дней\n"
+        "• <code>/removeplan ID/@username</code> — убрать подписку\n"
+        "• <code>/ban ID/@username причина</code> — заблокировать\n"
+        "• <code>/unban ID/@username</code> — разблокировать\n\n"
+        "<b>🎟 Промо-коды:</b>\n"
+        "• <code>/createpromo КОД тип значение [макс]</code>\n"
+        "  Типы: videos, vip_days, premium_days\n"
+        "• <code>/deletepromo КОД</code> — удалить промо-код\n"
+        "• <code>/listpromo</code> — список промо-кодов\n\n"
+        "<b>📢 Рассылка:</b>\n"
+        "• <code>/broadcast текст</code> — рассылка всем\n\n"
+        "<b>📊 Статистика:</b>\n"
+        "• <code>/globalstats</code> — глобальная статистика\n"
+        "• <code>/checkexpiry</code> — истекающие подписки\n\n"
+        "<b>🔧 Система:</b>\n"
+        "• <code>/update_ytdlp</code> — обновить yt-dlp\n"
+        "• <code>/admin</code> — открыть админ-панель\n\n"
+        "<b>ℹ️ Другое:</b>\n"
+        "• <code>/myid</code> — узнать свой ID\n"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="« Назад", callback_data="admin_back")]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
 @dp.callback_query(F.data == "admin_sources")
 async def cb_admin_sources(callback: CallbackQuery):
     """ Статистика по источникам """
@@ -2477,17 +2518,6 @@ async def periodic_cleanup():
         cleanup_short_id_map()
         cleanup_old_files()
 
-
-async def periodic_expiry_check():
-    """ Проверка истекающих подписок раз в день """
-    while True:
-        await asyncio.sleep(86400)  # раз в 24 часа
-        try:
-            await check_expiring_subscriptions()
-        except Exception as e:
-            logger.error(f"Expiry check error: {e}")
-
-
 async def on_shutdown():
     """ Graceful shutdown """
     logger.info("Shutting down...")
@@ -2498,7 +2528,6 @@ async def on_shutdown():
 async def main():
     await on_startup()
     asyncio.create_task(periodic_cleanup())
-    asyncio.create_task(periodic_expiry_check())
     try:
         await dp.start_polling(bot)
     finally:

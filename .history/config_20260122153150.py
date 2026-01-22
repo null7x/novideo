@@ -493,20 +493,6 @@ TEXTS_EN = {
     # Improved errors
     "error_download": "❌ Could not download video. Try another link.",
     "error_youtube": "❌ YouTube error. Video may be unavailable or restricted.",
-    # Help/FAQ
-    "help_faq": (
-        "❓ <b>Frequently Asked Questions</b>\n\n"
-        "<b>Q: Why won't the video download?</b>\n"
-        "A: Check the link. Some videos may be private.\n\n"
-        "<b>Q: What does uniqualization do?</b>\n"
-        "A: Changes metadata, colors, cropping — video is not detected as duplicate.\n\n"
-        "<b>Q: How to get more videos?</b>\n"
-        "A: Buy VIP or Premium, or invite friends!\n\n"
-        "<b>Q: What platforms are supported?</b>\n"
-        "A: TikTok, YouTube, Instagram, VK, Twitter, Douyin, Bilibili, Kuaishou and others."
-    ),
-    "report_issue": "📝 <b>What's the problem?</b>\n\nChoose issue type:",
-    "issue_reported": "✅ <b>Thanks for the report!</b>\n\nAdmin will review your issue soon.",
 }
 
 BUTTONS_EN = {
@@ -534,7 +520,6 @@ BUTTONS_EN = {
     "language": "🌐 Language",
     "update_ytdlp": "🔄 Update yt-dlp",
     "admin_stats": "📊 Global Statistics",
-    "help": "❓ Help / FAQ",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -566,5 +551,4 @@ BUTTONS = {
     "admin_stats": "📊 Глобальная статистика",
     "referral": "👥 Рефералы",
     "language": "🌐 Язык",
-    "help": "❓ Помощь / FAQ",
 }

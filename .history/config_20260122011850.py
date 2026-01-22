@@ -344,25 +344,6 @@ TEXTS = {
     "no_active_task": "❌ Нет активной задачи для отмены",
     "task_cancelled": "✅ Обработка отменена",
     "cancel_failed": "❌ Не удалось отменить (возможно уже обработано)",
-    # Лимит очереди
-    "user_queue_limit": "⚠️ У тебя уже есть задачи в очереди. Дождись завершения!",
-    # Улучшенные ошибки
-    "error_download": "❌ Не удалось скачать видео. Попробуй другую ссылку.",
-    "error_youtube": "❌ Ошибка YouTube. Видео может быть недоступно или ограничено.",
-    # Help/FAQ
-    "help_faq": (
-        "❓ <b>Часто задаваемые вопросы</b>\n\n"
-        "<b>Q: Почему видео не скачивается?</b>\n"
-        "A: Проверь ссылку. Некоторые видео могут быть приватными.\n\n"
-        "<b>Q: Что делает уникализация?</b>\n"
-        "A: Меняет метаданные, цвета, кадрирование — видео не определяется как повтор.\n\n"
-        "<b>Q: Как получить больше видео?</b>\n"
-        "A: Купи VIP или Premium, или приглашай друзей!\n\n"
-        "<b>Q: Какие платформы поддерживаются?</b>\n"
-        "A: TikTok, YouTube, Instagram, VK, Twitter, Douyin, Bilibili, Kuaishou и другие."
-    ),
-    "report_issue": "📝 <b>Какая проблема?</b>\n\nВыбери тип проблемы:",
-    "issue_reported": "✅ <b>Спасибо за репорт!</b>\n\nАдмин скоро рассмотрит твою проблему.",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -476,37 +457,6 @@ TEXTS_EN = {
     "premium_granted": "👑 User @{username} (ID: {user_id}) received Premium for 30 days!",
     "vip_granted": "💎 User @{username} (ID: {user_id}) received VIP for 30 days!",
     "monthly_limit": "⚠️ Limit exhausted! {remaining} videos left for 30 days.\n\n💎 Want more? Contact admin for VIP/Premium!",
-    # Promo codes
-    "promo_usage": "🎟 Usage: <code>/promo CODE</code>",
-    "promo_activated": "🎉 Promo code activated!\n\n🎁 Bonus: {bonus}",
-    "promo_not_found": "❌ Promo code not found",
-    "promo_already_used": "⚠️ You've already used this promo code",
-    "promo_expired": "⚠️ This promo code is no longer valid",
-    # History and cancel
-    "history_empty": "📋 Processing history is empty",
-    "history_title": "📋 <b>Recent processing:</b>",
-    "no_active_task": "❌ No active task to cancel",
-    "task_cancelled": "✅ Processing cancelled",
-    "cancel_failed": "❌ Could not cancel (possibly already processed)",
-    # Queue limit
-    "user_queue_limit": "⚠️ You already have tasks in queue. Wait for completion!",
-    # Improved errors
-    "error_download": "❌ Could not download video. Try another link.",
-    "error_youtube": "❌ YouTube error. Video may be unavailable or restricted.",
-    # Help/FAQ
-    "help_faq": (
-        "❓ <b>Frequently Asked Questions</b>\n\n"
-        "<b>Q: Why won't the video download?</b>\n"
-        "A: Check the link. Some videos may be private.\n\n"
-        "<b>Q: What does uniqualization do?</b>\n"
-        "A: Changes metadata, colors, cropping — video is not detected as duplicate.\n\n"
-        "<b>Q: How to get more videos?</b>\n"
-        "A: Buy VIP or Premium, or invite friends!\n\n"
-        "<b>Q: What platforms are supported?</b>\n"
-        "A: TikTok, YouTube, Instagram, VK, Twitter, Douyin, Bilibili, Kuaishou and others."
-    ),
-    "report_issue": "📝 <b>What's the problem?</b>\n\nChoose issue type:",
-    "issue_reported": "✅ <b>Thanks for the report!</b>\n\nAdmin will review your issue soon.",
 }
 
 BUTTONS_EN = {
@@ -534,7 +484,6 @@ BUTTONS_EN = {
     "language": "🌐 Language",
     "update_ytdlp": "🔄 Update yt-dlp",
     "admin_stats": "📊 Global Statistics",
-    "help": "❓ Help / FAQ",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -566,5 +515,4 @@ BUTTONS = {
     "admin_stats": "📊 Глобальная статистика",
     "referral": "👥 Рефералы",
     "language": "🌐 Язык",
-    "help": "❓ Помощь / FAQ",
 }
