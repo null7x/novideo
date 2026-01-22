@@ -167,28 +167,10 @@ def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
     ])
 
 def get_result_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
-    """ Клавиатура после успешной обработки """
-    daily_remaining = rate_limiter.get_daily_remaining(user_id)
-    
-    buttons = []
-    
-    # Кнопка повторной обработки если есть лимит
-    if daily_remaining > 0:
-        buttons.append([InlineKeyboardButton(
-            text=f"🔄 {get_button(user_id, 'again')} ({daily_remaining} осталось)", 
-            callback_data=f"process:{short_id}"
-        )])
-    
-    # Дополнительные кнопки
-    buttons.append([
-        InlineKeyboardButton(text="📊 Статистика", callback_data="my_stats"),
-        InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"),
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_button(user_id, "again"), callback_data=f"process:{short_id}")],
+        [InlineKeyboardButton(text=get_button(user_id, "change_mode"), callback_data="change_mode")],
     ])
-    buttons.append([
-        InlineKeyboardButton(text=get_button(user_id, "change_mode"), callback_data="change_mode")
-    ])
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_how_it_works_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -869,62 +851,6 @@ async def cmd_checkexpiry(message: Message):
 async def cmd_myid(message: Message):
     """ /myid — показать свой ID """
     await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>")
-
-
-@dp.message(Command("limits"))
-async def cmd_limits(message: Message):
-    """ /limits — показать информацию о лимитах """
-    user_id = message.from_user.id
-    lang = rate_limiter.get_language(user_id)
-    
-    stats = rate_limiter.get_stats(user_id)
-    daily_reset = rate_limiter.get_time_until_daily_reset(user_id)
-    weekly_reset = rate_limiter.get_time_until_weekly_reset(user_id)
-    plan_info = rate_limiter.get_plan_expiry_info(user_id)
-    
-    plan = stats.get("plan", "free")
-    plan_names = {"free": "🆓 Free", "vip": "⭐ VIP", "premium": "👑 Premium"}
-    
-    if lang == "en":
-        text = (
-            f"📊 <b>Your Limits</b>\n\n"
-            f"📋 Plan: <b>{plan_names.get(plan, plan)}</b>\n"
-        )
-        if plan_info["has_expiry"]:
-            text += f"⏰ Expires in: <b>{plan_info['days_left']} days</b>\n"
-        text += (
-            f"\n<b>Today:</b>\n"
-            f"• Used: {stats.get('daily_videos', 0)}/{stats.get('daily_limit', 2)}\n"
-            f"• Remaining: {stats.get('daily_limit', 2) - stats.get('daily_videos', 0)}\n"
-            f"• Reset in: {daily_reset}\n\n"
-            f"<b>This week:</b>\n"
-            f"• Used: {stats.get('weekly_videos', 0)}/{stats.get('weekly_limit', 14)}\n"
-            f"• Remaining: {stats.get('weekly_limit', 14) - stats.get('weekly_videos', 0)}\n"
-            f"• Reset in: {weekly_reset}"
-        )
-    else:
-        text = (
-            f"📊 <b>Твои лимиты</b>\n\n"
-            f"📋 План: <b>{plan_names.get(plan, plan)}</b>\n"
-        )
-        if plan_info["has_expiry"]:
-            text += f"⏰ Истекает через: <b>{plan_info['days_left']} дней</b>\n"
-        text += (
-            f"\n<b>Сегодня:</b>\n"
-            f"• Использовано: {stats.get('daily_videos', 0)}/{stats.get('daily_limit', 2)}\n"
-            f"• Осталось: {stats.get('daily_limit', 2) - stats.get('daily_videos', 0)}\n"
-            f"• Сброс через: {daily_reset}\n\n"
-            f"<b>На этой неделе:</b>\n"
-            f"• Использовано: {stats.get('weekly_videos', 0)}/{stats.get('weekly_limit', 14)}\n"
-            f"• Осталось: {stats.get('weekly_limit', 14) - stats.get('weekly_videos', 0)}\n"
-            f"• Сброс через: {weekly_reset}"
-        )
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💰 Тарифы" if lang == "ru" else "💰 Pricing", callback_data="buy_premium")]
-    ])
-    
-    await message.answer(text, reply_markup=keyboard)
 
 
 @dp.message(Command("help"))
@@ -2038,31 +1964,10 @@ async def handle_video(message: Message):
     plan_names = {"free": "🆓", "vip": "⭐", "premium": "👑"}
     plan_icon = plan_names.get(stats.get("plan", "free"), "🆓")
     
-    # Форматируем размер и длительность
-    size_str = f"{file_size_mb:.1f} MB"
-    duration_str = ""
-    if message.video and message.video.duration:
-        mins = message.video.duration // 60
-        secs = message.video.duration % 60
-        duration_str = f" • {mins}:{secs:02d}"
-    
-    lang = rate_limiter.get_language(user_id)
-    if lang == "en":
-        text = (
-            f"{get_text(user_id, 'video_received')}\n"
-            f"📁 <code>{size_str}{duration_str}</code>\n"
-            f"🎯 Mode: <b>{mode_text}</b>\n"
-            f"📊 Today left: {daily_remaining} {plan_icon}"
-        )
-    else:
-        text = (
-            f"{get_text(user_id, 'video_received')}\n"
-            f"📁 <code>{size_str}{duration_str}</code>\n"
-            f"🎯 Режим: <b>{mode_text}</b>\n"
-            f"📊 Сегодня осталось: {daily_remaining} {plan_icon}"
-        )
-    
-    await message.answer(text, reply_markup=get_video_keyboard(short_id, user_id))
+    await message.answer(
+        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Сегодня: {daily_remaining} видео {plan_icon}",
+        reply_markup=get_video_keyboard(short_id, user_id)
+    )
 
 @dp.callback_query(F.data.startswith("process:"))
 async def cb_process(callback: CallbackQuery):

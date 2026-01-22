@@ -2038,31 +2038,10 @@ async def handle_video(message: Message):
     plan_names = {"free": "🆓", "vip": "⭐", "premium": "👑"}
     plan_icon = plan_names.get(stats.get("plan", "free"), "🆓")
     
-    # Форматируем размер и длительность
-    size_str = f"{file_size_mb:.1f} MB"
-    duration_str = ""
-    if message.video and message.video.duration:
-        mins = message.video.duration // 60
-        secs = message.video.duration % 60
-        duration_str = f" • {mins}:{secs:02d}"
-    
-    lang = rate_limiter.get_language(user_id)
-    if lang == "en":
-        text = (
-            f"{get_text(user_id, 'video_received')}\n"
-            f"📁 <code>{size_str}{duration_str}</code>\n"
-            f"🎯 Mode: <b>{mode_text}</b>\n"
-            f"📊 Today left: {daily_remaining} {plan_icon}"
-        )
-    else:
-        text = (
-            f"{get_text(user_id, 'video_received')}\n"
-            f"📁 <code>{size_str}{duration_str}</code>\n"
-            f"🎯 Режим: <b>{mode_text}</b>\n"
-            f"📊 Сегодня осталось: {daily_remaining} {plan_icon}"
-        )
-    
-    await message.answer(text, reply_markup=get_video_keyboard(short_id, user_id))
+    await message.answer(
+        f"{get_text(user_id, 'video_received')}\n🎯 Режим: <b>{mode_text}</b>\n📊 Сегодня: {daily_remaining} видео {plan_icon}",
+        reply_markup=get_video_keyboard(short_id, user_id)
+    )
 
 @dp.callback_query(F.data.startswith("process:"))
 async def cb_process(callback: CallbackQuery):
