@@ -22,7 +22,7 @@ from config import (
     MAX_FILE_SIZE_MB, MAX_VIDEO_DURATION_SECONDS, ALLOWED_EXTENSIONS,
     TEXTS, BUTTONS, Quality, QUALITY_SETTINGS, SHORT_ID_TTL_SECONDS,
     ADMIN_IDS, ADMIN_USERNAMES, PLAN_LIMITS, MAX_CONCURRENT_TASKS,
-    TEXTS_EN, BUTTONS_EN, BOT_VERSION
+    TEXTS_EN, BUTTONS_EN
 )
 from rate_limit import rate_limiter
 from ffmpeg_utils import (
@@ -800,7 +800,6 @@ async def cmd_ping(message: Message):
     if lang == "en":
         text = (
             f"🏓 <b>Pong!</b>\n\n"
-            f"📦 Version: <code>{BOT_VERSION}</code>\n"
             f"⚡ Response: <code>{latency}ms</code>\n"
             f"📥 Queue: <b>{queue_size}</b> tasks\n"
             f"✅ Bot is working!"
@@ -808,7 +807,6 @@ async def cmd_ping(message: Message):
     else:
         text = (
             f"🏓 <b>Понг!</b>\n\n"
-            f"📦 Версия: <code>{BOT_VERSION}</code>\n"
             f"⚡ Отклик: <code>{latency}ms</code>\n"
             f"📥 Очередь: <b>{queue_size}</b> задач\n"
             f"✅ Бот работает!"

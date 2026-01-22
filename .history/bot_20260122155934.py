@@ -800,7 +800,6 @@ async def cmd_ping(message: Message):
     if lang == "en":
         text = (
             f"🏓 <b>Pong!</b>\n\n"
-            f"📦 Version: <code>{BOT_VERSION}</code>\n"
             f"⚡ Response: <code>{latency}ms</code>\n"
             f"📥 Queue: <b>{queue_size}</b> tasks\n"
             f"✅ Bot is working!"
@@ -808,7 +807,6 @@ async def cmd_ping(message: Message):
     else:
         text = (
             f"🏓 <b>Понг!</b>\n\n"
-            f"📦 Версия: <code>{BOT_VERSION}</code>\n"
             f"⚡ Отклик: <code>{latency}ms</code>\n"
             f"📥 Очередь: <b>{queue_size}</b> задач\n"
             f"✅ Бот работает!"

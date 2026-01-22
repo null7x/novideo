@@ -22,7 +22,7 @@ from config import (
     MAX_FILE_SIZE_MB, MAX_VIDEO_DURATION_SECONDS, ALLOWED_EXTENSIONS,
     TEXTS, BUTTONS, Quality, QUALITY_SETTINGS, SHORT_ID_TTL_SECONDS,
     ADMIN_IDS, ADMIN_USERNAMES, PLAN_LIMITS, MAX_CONCURRENT_TASKS,
-    TEXTS_EN, BUTTONS_EN, BOT_VERSION
+    TEXTS_EN, BUTTONS_EN
 )
 from rate_limit import rate_limiter
 from ffmpeg_utils import (
@@ -543,15 +543,9 @@ async def cmd_globalstats(message: Message):
         return
     
     stats = rate_limiter.get_global_stats()
-    daily = rate_limiter.get_daily_stats()
     
     text = (
         f"📊 <b>Глобальная статистика</b>\n\n"
-        f"<b>📅 За сегодня:</b>\n"
-        f"• Новых: <b>{daily['new_users']}</b>\n"
-        f"• Видео: <b>{daily['videos_today']}</b>\n"
-        f"• Активных: <b>{stats['active_today']}</b>\n\n"
-        f"<b>📈 Всего:</b>\n"
         f"👥 Пользователей: <b>{stats['total_users']}</b>\n"
         f"🎬 Видео обработано: <b>{stats['total_videos']}</b>\n"
         f"⬇️ Скачиваний: <b>{stats['total_downloads']}</b>\n"
@@ -560,17 +554,6 @@ async def cmd_globalstats(message: Message):
         f"💾 Кэш видео: <b>{len(video_cache)}</b>"
     )
     await message.answer(text)
-
-
-@dp.message(Command("dailystats"))
-async def cmd_dailystats(message: Message):
-    """ /dailystats — отправить ежедневную статистику сейчас """
-    if not is_admin(message.from_user):
-        await message.answer(TEXTS.get("not_admin", "⛔ Нет доступа"))
-        return
-    
-    await send_daily_stats()
-    await message.answer("✅ Ежедневная статистика отправлена!")
 
 
 @dp.message(Command("ban"))
@@ -800,7 +783,6 @@ async def cmd_ping(message: Message):
     if lang == "en":
         text = (
             f"🏓 <b>Pong!</b>\n\n"
-            f"📦 Version: <code>{BOT_VERSION}</code>\n"
             f"⚡ Response: <code>{latency}ms</code>\n"
             f"📥 Queue: <b>{queue_size}</b> tasks\n"
             f"✅ Bot is working!"
@@ -808,7 +790,6 @@ async def cmd_ping(message: Message):
     else:
         text = (
             f"🏓 <b>Понг!</b>\n\n"
-            f"📦 Версия: <code>{BOT_VERSION}</code>\n"
             f"⚡ Отклик: <code>{latency}ms</code>\n"
             f"📥 Очередь: <b>{queue_size}</b> задач\n"
             f"✅ Бот работает!"
@@ -1029,26 +1010,27 @@ async def cb_admin_commands(callback: CallbackQuery):
     text = (
         "📝 <b>Команды администратора</b>\n\n"
         "<b>👤 Управление пользователями:</b>\n"
-        "• <code>/userinfo @user</code> — инфо о пользователе\n"
-        "• <code>/vip @user [дней]</code> — выдать VIP\n"
-        "• <code>/premium @user [дней]</code> — выдать Premium\n"
-        "• <code>/removeplan @user</code> — убрать подписку\n"
-        "• <code>/ban @user [причина]</code> — заблокировать\n"
-        "• <code>/unban @user</code> — разблокировать\n\n"
+        "• <code>/userinfo ID/@username</code> — инфо о пользователе\n"
+        "• <code>/vip ID/@username</code> — выдать VIP на 30 дней\n"
+        "• <code>/premium ID/@username</code> — выдать Premium на 30 дней\n"
+        "• <code>/removeplan ID/@username</code> — убрать подписку\n"
+        "• <code>/ban ID/@username причина</code> — заблокировать\n"
+        "• <code>/unban ID/@username</code> — разблокировать\n\n"
         "<b>🎟 Промо-коды:</b>\n"
         "• <code>/createpromo КОД тип значение [макс]</code>\n"
-        "• <code>/deletepromo КОД</code> — удалить\n"
-        "• <code>/listpromo</code> — список кодов\n\n"
-        "<b>📊 Статистика:</b>\n"
-        "• <code>/globalstats</code> — полная статистика\n"
-        "• <code>/dailystats</code> — отправить отчёт\n"
-        "• <code>/checkexpiry</code> — истекающие подписки\n\n"
+        "  Типы: videos, vip_days, premium_days\n"
+        "• <code>/deletepromo КОД</code> — удалить промо-код\n"
+        "• <code>/listpromo</code> — список промо-кодов\n\n"
         "<b>📢 Рассылка:</b>\n"
         "• <code>/broadcast текст</code> — рассылка всем\n\n"
+        "<b>📊 Статистика:</b>\n"
+        "• <code>/globalstats</code> — глобальная статистика\n"
+        "• <code>/checkexpiry</code> — истекающие подписки\n\n"
         "<b>🔧 Система:</b>\n"
         "• <code>/update_ytdlp</code> — обновить yt-dlp\n"
-        "• <code>/ping</code> — проверить бота\n"
-        "• <code>/admin</code> — админ-панель"
+        "• <code>/admin</code> — открыть админ-панель\n\n"
+        "<b>ℹ️ Другое:</b>\n"
+        "• <code>/myid</code> — узнать свой ID\n"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -2043,13 +2025,6 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
         if any(domain in url.lower() for domain in ['kuaishou.com', 'gifshow.com']):
             return await download_kuaishou_video(url, output_path)
         
-        # Специальная обработка Instagram
-        if 'instagram.com' in url.lower():
-            result = await download_instagram_video(url, output_path)
-            if result:
-                return True
-            # Fallback на yt-dlp
-        
         import yt_dlp
         
         # Определяем, YouTube ли это
@@ -2092,76 +2067,6 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
         
     except Exception as e:
         logger.error(f"[YT-DLP] Error downloading {url}: {e}")
-        return False
-
-
-async def download_instagram_video(url: str, output_path: str) -> bool:
-    """Скачать Instagram Reels/Post видео"""
-    try:
-        import aiohttp
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.instagram.com/',
-        }
-        
-        # Используем публичные API
-        api_endpoints = [
-            f"https://api.savefrom.biz/api/convert?url={url}",
-            f"https://igdownloader.app/api/ajaxSearch",
-        ]
-        
-        async with aiohttp.ClientSession() as session:
-            video_url = None
-            
-            # Пробуем разные API
-            for i, api_url in enumerate(api_endpoints):
-                try:
-                    if i == 1:  # igdownloader.app
-                        async with session.post(api_url, data={'q': url}, headers=headers, timeout=15) as resp:
-                            if resp.status == 200:
-                                text = await resp.text()
-                                # Ищем URL видео в HTML ответе
-                                import re
-                                match = re.search(r'href="(https://[^"]+\.mp4[^"]*)"', text)
-                                if match:
-                                    video_url = match.group(1)
-                                    break
-                    else:
-                        async with session.get(api_url, headers=headers, timeout=15) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                if 'url' in data:
-                                    video_url = data['url']
-                                    break
-                except Exception as e:
-                    logger.debug(f"[Instagram] API {i} failed: {e}")
-                    continue
-            
-            if not video_url:
-                logger.warning("[Instagram] No video URL found via APIs")
-                return False
-            
-            logger.info(f"[Instagram] Found video URL")
-            
-            # Скачиваем видео
-            async with session.get(video_url, headers=headers, timeout=120) as video_resp:
-                if video_resp.status != 200:
-                    return False
-                
-                with open(output_path, 'wb') as f:
-                    while True:
-                        chunk = await video_resp.content.read(8192)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-            
-            return os.path.exists(output_path) and os.path.getsize(output_path) > 1000
-            
-    except Exception as e:
-        logger.error(f"[Instagram] Error: {e}")
         return False
 
 
@@ -2631,48 +2536,6 @@ async def periodic_expiry_check():
             logger.error(f"Expiry check error: {e}")
 
 
-async def send_daily_stats():
-    """ Отправить ежедневную статистику админам """
-    try:
-        stats = rate_limiter.get_global_stats()
-        daily = rate_limiter.get_daily_stats()
-        
-        text = (
-            f"📊 <b>Ежедневный отчёт</b>\n\n"
-            f"📅 За сегодня:\n"
-            f"• Новых пользователей: <b>{daily.get('new_users', 0)}</b>\n"
-            f"• Обработано видео: <b>{daily.get('videos_today', 0)}</b>\n"
-            f"• Скачиваний: <b>{daily.get('downloads_today', 0)}</b>\n\n"
-            f"📈 Всего:\n"
-            f"• Пользователей: <b>{stats['total_users']}</b>\n"
-            f"• VIP: <b>{stats['vip_users']}</b>\n"
-            f"• Premium: <b>{stats['premium_users']}</b>\n"
-            f"• Видео обработано: <b>{stats['total_videos']}</b>"
-        )
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                await bot.send_message(admin_id, text)
-            except:
-                pass
-    except Exception as e:
-        logger.error(f"Daily stats error: {e}")
-
-
-async def periodic_daily_stats():
-    """ Отправка ежедневной статистики в 00:00 """
-    import datetime
-    while True:
-        # Вычисляем время до полуночи
-        now = datetime.datetime.now()
-        tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
-        seconds_until_midnight = (tomorrow - now).total_seconds()
-        
-        await asyncio.sleep(seconds_until_midnight)
-        await send_daily_stats()
-        rate_limiter.reset_daily_stats()
-
-
 async def on_shutdown():
     """ Graceful shutdown """
     logger.info("Shutting down...")
@@ -2684,7 +2547,6 @@ async def main():
     await on_startup()
     asyncio.create_task(periodic_cleanup())
     asyncio.create_task(periodic_expiry_check())
-    asyncio.create_task(periodic_daily_stats())
     try:
         await dp.start_polling(bot)
     finally:

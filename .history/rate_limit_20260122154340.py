@@ -391,36 +391,6 @@ class RateLimiter:
             "languages": languages,
         }
     
-    def get_daily_stats(self) -> dict:
-        """ Получить статистику за сегодня """
-        import datetime
-        today = datetime.date.today().isoformat()
-        
-        # Считаем новых пользователей (first_seen = сегодня)
-        new_users = sum(1 for u in self.users.values() 
-                       if u.first_seen and u.first_seen.startswith(today))
-        
-        # Видео за сегодня
-        videos_today = sum(u.today_videos for u in self.users.values() 
-                          if u.today_date == today)
-        
-        # Скачиваний (используем today_downloads если есть)
-        downloads_today = sum(getattr(u, 'today_downloads', 0) for u in self.users.values())
-        
-        return {
-            "new_users": new_users,
-            "videos_today": videos_today,
-            "downloads_today": downloads_today,
-        }
-    
-    def reset_daily_stats(self):
-        """ Сброс ежедневных счетчиков """
-        for user in self.users.values():
-            user.today_videos = 0
-            if hasattr(user, 'today_downloads'):
-                user.today_downloads = 0
-        self.save_data()
-    
     # ═════════════════════════════════════════════════════════════
     # QUALITY SETTINGS
     # ═════════════════════════════════════════════════════════════

@@ -6,11 +6,6 @@ from dataclasses import dataclass, field
 from typing import Dict, Any
 
 # ══════════════════════════════════════════════════════════════════════════════
-# BOT VERSION
-# ══════════════════════════════════════════════════════════════════════════════
-BOT_VERSION = "2.5.0"
-
-# ══════════════════════════════════════════════════════════════════════════════
 # BOT SETTINGS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -260,16 +255,10 @@ TEXTS = {
     ),
     "video_received": "🎬 Видео получено",
     "processing": "⏳ Обрабатываем видео...",
-    "processing_download": "📥 Скачиваем видео...",
-    "processing_analyze": "🔍 Анализируем контент...",
-    "processing_unique": "🎨 Уникализируем видео...",
-    "processing_upload": "📤 Отправляем результат...",
     "done": "✅ Готово",
     "downloaded": "⬇️ Видео скачано",
     "error": "⚠️ Не удалось обработать видео. Попробуй другой файл.",
     "error_download": "⚠️ Не удалось скачать видео. Проверь ссылку.",
-    "error_timeout": "⏱ Превышено время обработки. Попробуй позже.",
-    "error_server": "🔧 Сервер перегружен. Попробуй через минуту.",
     "invalid_format": "⚠️ Отправь видео в формате MP4 или MOV",
     "file_too_large": "⚠️ Видео слишком большое. Максимум — 100 МБ",
     "video_too_long": "⚠️ Видео слишком длинное. Максимум — 2 минуты",
@@ -411,16 +400,10 @@ TEXTS_EN = {
     ),
     "video_received": "🎬 Video received",
     "processing": "⏳ Processing video...",
-    "processing_download": "📥 Downloading video...",
-    "processing_analyze": "🔍 Analyzing content...",
-    "processing_unique": "🎨 Making video unique...",
-    "processing_upload": "📤 Uploading result...",
     "done": "✅ Done",
     "downloaded": "⬇️ Video downloaded",
     "error": "⚠️ Failed to process video. Try another file.",
     "error_download": "⚠️ Failed to download video. Check the link.",
-    "error_timeout": "⏱ Processing timeout. Try later.",
-    "error_server": "🔧 Server overloaded. Try in a minute.",
     "invalid_format": "⚠️ Send video in MP4 or MOV format",
     "file_too_large": "⚠️ Video is too large. Maximum — 100 MB",
     "video_too_long": "⚠️ Video is too long. Maximum — 2 minutes",
