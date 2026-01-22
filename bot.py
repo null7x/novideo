@@ -28,7 +28,8 @@ from rate_limit import rate_limiter
 from ffmpeg_utils import (
     start_workers, add_to_queue, ProcessingTask,
     get_temp_dir, generate_unique_filename, cleanup_file,
-    cleanup_old_files, get_queue_size, cancel_task, get_user_task
+    cleanup_old_files, get_queue_size, cancel_task, get_user_task,
+    get_user_queue_count
 )
 import time as time_module
 
@@ -1779,6 +1780,13 @@ async def cb_process(callback: CallbackQuery):
         await callback.answer(get_text(user_id, "queue_full"), show_alert=True)
         return
     
+    # Лимит задач на одного пользователя (максимум 2)
+    user_queue_count = get_user_queue_count(user_id)
+    max_per_user = 3 if rate_limiter.get_plan(user_id) in ["vip", "premium"] else 2
+    if user_queue_count >= max_per_user:
+        await callback.answer(get_text(user_id, "user_queue_limit"), show_alert=True)
+        return
+    
     rate_limiter.register_request(user_id, file_unique_id)
     rate_limiter.set_processing(user_id, True, file_id)
     
@@ -1892,14 +1900,34 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
         
         import yt_dlp
         
+        # Определяем, YouTube ли это
+        is_youtube = any(d in url.lower() for d in ['youtube.com', 'youtu.be'])
+        
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
+            'format': 'best[ext=mp4][height<=1080]/best[ext=mp4]/best',
             'outtmpl': output_path,
             'quiet': True,
             'no_warnings': True,
             'max_filesize': MAX_FILE_SIZE_MB * 1024 * 1024,
-            'socket_timeout': 30,
+            'socket_timeout': 60,
+            'retries': 3,
+            'fragment_retries': 3,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+            },
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web'],
+                }
+            },
         }
+        
+        # Дополнительные опции для YouTube
+        if is_youtube:
+            ydl_opts['format'] = 'best[ext=mp4][height<=1080]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+            ydl_opts['merge_output_format'] = 'mp4'
         
         loop = asyncio.get_event_loop()
         
@@ -1908,7 +1936,7 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
                 ydl.download([url])
         
         await loop.run_in_executor(None, download)
-        return os.path.exists(output_path)
+        return os.path.exists(output_path) and os.path.getsize(output_path) > 0
         
     except Exception as e:
         logger.error(f"[YT-DLP] Error downloading {url}: {e}")
@@ -2334,10 +2362,34 @@ async def handle_other(message: Message):
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def on_startup():
+    # Автоматическое обновление yt-dlp при старте (в фоне)
+    asyncio.create_task(auto_update_ytdlp())
     await start_workers()
     cleanup_old_files()
     cleanup_short_id_map()
     logger.info("Virex started")
+
+
+async def auto_update_ytdlp():
+    """ Автоматическое обновление yt-dlp в фоне """
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def update():
+            result = subprocess.run(
+                ["pip", "install", "-U", "yt-dlp"],
+                capture_output=True, text=True, timeout=120
+            )
+            return result.returncode == 0
+        
+        success = await loop.run_in_executor(None, update)
+        if success:
+            logger.info("[YT-DLP] Auto-updated successfully")
+        else:
+            logger.warning("[YT-DLP] Auto-update failed")
+    except Exception as e:
+        logger.error(f"[YT-DLP] Auto-update error: {e}")
 
 async def periodic_cleanup():
     """ Периодическая очистка """
@@ -2346,10 +2398,23 @@ async def periodic_cleanup():
         cleanup_short_id_map()
         cleanup_old_files()
 
+async def on_shutdown():
+    """ Graceful shutdown """
+    logger.info("Shutting down...")
+    rate_limiter.save_data()
+    cleanup_old_files()
+    logger.info("Data saved, shutdown complete")
+
 async def main():
     await on_startup()
     asyncio.create_task(periodic_cleanup())
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await on_shutdown()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")

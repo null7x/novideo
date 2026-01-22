@@ -881,5 +881,13 @@ def get_user_task(user_id: int) -> ProcessingTask:
             return task
     return None
 
+def get_user_queue_count(user_id: int) -> int:
+    """ Посчитать сколько задач пользователя в очереди """
+    count = 0
+    for task in active_tasks.values():
+        if task.user_id == user_id and not task.cancelled:
+            count += 1
+    return count
+
 def get_queue_size() -> int:
     return processing_queue.qsize() if processing_queue else 0

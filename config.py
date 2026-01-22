@@ -344,6 +344,11 @@ TEXTS = {
     "no_active_task": "❌ Нет активной задачи для отмены",
     "task_cancelled": "✅ Обработка отменена",
     "cancel_failed": "❌ Не удалось отменить (возможно уже обработано)",
+    # Лимит очереди
+    "user_queue_limit": "⚠️ У тебя уже есть задачи в очереди. Дождись завершения!",
+    # Улучшенные ошибки
+    "error_download": "❌ Не удалось скачать видео. Попробуй другую ссылку.",
+    "error_youtube": "❌ Ошибка YouTube. Видео может быть недоступно или ограничено.",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -469,6 +474,11 @@ TEXTS_EN = {
     "no_active_task": "❌ No active task to cancel",
     "task_cancelled": "✅ Processing cancelled",
     "cancel_failed": "❌ Could not cancel (possibly already processed)",
+    # Queue limit
+    "user_queue_limit": "⚠️ You already have tasks in queue. Wait for completion!",
+    # Improved errors
+    "error_download": "❌ Could not download video. Try another link.",
+    "error_youtube": "❌ YouTube error. Video may be unavailable or restricted.",
 }
 
 BUTTONS_EN = {
