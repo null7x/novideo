@@ -768,15 +768,6 @@ async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float, flo
     
     return None
 
-
-async def get_video_duration(input_path: str) -> float:
-    """Получает длительность видео в секундах"""
-    info = await get_video_info(input_path)
-    if info and len(info) >= 3:
-        return info[2]  # duration is the third element
-    return 0.0
-
-
 def _generate_random_timestamp() -> str:
     """Генерация рандомного timestamp для anti-source pattern"""
     import datetime
