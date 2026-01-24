@@ -37,14 +37,6 @@ from ffmpeg_utils import (
     is_maintenance_mode, set_maintenance_mode, estimate_queue_time,
     with_retry, ProgressTracker
 )
-
-# v3.2.0: Watermark-Trap detection
-try:
-    from watermark_trap import get_trap_detector, DetectionResult
-    WATERMARK_TRAP_DETECTION_AVAILABLE = True
-except ImportError:
-    WATERMARK_TRAP_DETECTION_AVAILABLE = False
-
 import time as time_module
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -118,7 +110,6 @@ bot = Bot(
 dp = Dispatcher()
 
 pending_files: dict = {}
-pending_detection: dict = {}  # v3.2.0: Пользователи, ожидающие видео для детекции Watermark-Trap
 short_id_map: dict = {}  # short_id -> {file_id, created_at}
 pending_referrers: dict = {}  # user_id -> referrer_id (для новых пользователей)
 pending_urls: dict = {}  # short_id -> {user_id, url, created_at}
@@ -640,160 +631,6 @@ async def cmd_stats(message: Message):
             text += f"\n\n⏱ Сброс: день через {daily_reset}, неделя через {weekly_reset}"
     
     await message.answer(text, reply_markup=get_stats_keyboard(user_id))
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# v3.2.0: WATERMARK-TRAP DETECTION
-# ══════════════════════════════════════════════════════════════════════════════
-
-@dp.message(Command("detect"))
-async def cmd_detect(message: Message):
-    """
-    Команда /detect — проверка видео на Watermark-Trap
-    Только для Premium пользователей
-    """
-    user_id = message.from_user.id
-    lang = rate_limiter.get_language(user_id)
-    
-    # Проверяем доступ (только Premium)
-    if not rate_limiter.can_use_watermark_trap(user_id):
-        if lang == "en":
-            await message.answer(
-                "🔒 <b>Watermark-Trap Detection</b>\n\n"
-                "This feature is available only for Premium users.\n\n"
-                "👑 <b>Premium features:</b>\n"
-                "• Invisible digital fingerprint\n"
-                "• Video source detection\n"
-                "• Proof of ownership\n\n"
-                "Upgrade to Premium to use this feature!"
-            )
-        else:
-            await message.answer(
-                "🔒 <b>Детекция Watermark-Trap</b>\n\n"
-                "Эта функция доступна только для Premium пользователей.\n\n"
-                "👑 <b>Premium возможности:</b>\n"
-                "• Невидимый цифровой отпечаток\n"
-                "• Определение источника видео\n"
-                "• Доказательство владения\n\n"
-                "Повысьте план до Premium!"
-            )
-        return
-    
-    if not WATERMARK_TRAP_DETECTION_AVAILABLE:
-        if lang == "en":
-            await message.answer("❌ Detection module is not available")
-        else:
-            await message.answer("❌ Модуль детекции недоступен")
-        return
-    
-    # Помечаем пользователя как ожидающего видео для детекции
-    pending_detection[user_id] = time_module.time()
-    
-    cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="❌ Отменить" if lang == "ru" else "❌ Cancel", 
-            callback_data="cancel_detection"
-        )]
-    ])
-    
-    if lang == "en":
-        await message.answer(
-            "🔍 <b>Watermark-Trap Detection</b>\n\n"
-            "Send the video you want to check for digital fingerprint.\n\n"
-            "If this video was processed through Virex, "
-            "I will find the hidden signature and show:\n"
-            "• User ID of the source\n"
-            "• Processing date\n"
-            "• Confidence level\n\n"
-            "⏳ Waiting for video...",
-            reply_markup=cancel_kb
-        )
-    else:
-        await message.answer(
-            "🔍 <b>Детекция Watermark-Trap</b>\n\n"
-            "Отправьте видео для проверки на наличие цифрового отпечатка.\n\n"
-            "Если это видео обрабатывалось через Virex, "
-            "я найду скрытую сигнатуру и покажу:\n"
-            "• ID пользователя-источника\n"
-            "• Дату обработки\n"
-            "• Уровень уверенности\n\n"
-            "⏳ Жду видео...",
-            reply_markup=cancel_kb
-        )
-
-
-@dp.callback_query(F.data == "cancel_detection")
-async def cb_cancel_detection(callback: CallbackQuery):
-    """Отмена режима детекции"""
-    user_id = callback.from_user.id
-    pending_detection.pop(user_id, None)
-    
-    lang = rate_limiter.get_language(user_id)
-    if lang == "en":
-        await callback.message.edit_text("✅ Detection mode cancelled")
-    else:
-        await callback.message.edit_text("✅ Режим детекции отменён")
-    await callback.answer()
-
-
-async def handle_detection_video(message: Message):
-    """
-    Обработка видео для детекции Watermark-Trap
-    """
-    user_id = message.from_user.id
-    lang = rate_limiter.get_language(user_id)
-    
-    if not WATERMARK_TRAP_DETECTION_AVAILABLE:
-        if lang == "en":
-            await message.answer("❌ Detection module is not available")
-        else:
-            await message.answer("❌ Модуль детекции недоступен")
-        return
-    
-    # Статус
-    if lang == "en":
-        status_msg = await message.answer("🔍 Analyzing video for Watermark-Trap...")
-    else:
-        status_msg = await message.answer("🔍 Анализирую видео на наличие Watermark-Trap...")
-    
-    try:
-        # Скачиваем видео
-        if message.video:
-            file = message.video
-        elif message.document:
-            file = message.document
-        else:
-            await status_msg.edit_text("❌ Video not found" if lang == "en" else "❌ Видео не найдено")
-            return
-        
-        # Скачиваем файл
-        temp_path = str(get_temp_dir() / f"detect_{generate_unique_filename()}")
-        
-        try:
-            file_info = await bot.get_file(file.file_id)
-            await bot.download_file(file_info.file_path, temp_path)
-        except Exception as e:
-            logger.error(f"Detection download error: {e}")
-            await status_msg.edit_text(
-                "❌ Failed to download video" if lang == "en" else "❌ Не удалось скачать видео"
-            )
-            return
-        
-        # Запускаем детекцию
-        detector = get_trap_detector()
-        result = await detector.detect(temp_path)
-        
-        # Удаляем временный файл
-        cleanup_file(temp_path)
-        
-        # Показываем результат
-        await status_msg.edit_text(result.to_message(lang))
-        
-    except Exception as e:
-        logger.error(f"Detection error: {e}")
-        await status_msg.edit_text(
-            f"❌ Detection error: {e}" if lang == "en" else f"❌ Ошибка детекции: {e}"
-        )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN COMMANDS
@@ -4532,15 +4369,6 @@ async def handle_audio(message: Message):
 async def handle_video(message: Message):
     user_id = message.from_user.id
     
-    # v3.2.0: Проверяем режим детекции Watermark-Trap
-    if user_id in pending_detection:
-        # Удаляем из ожидания
-        pending_detection.pop(user_id, None)
-        
-        # Обрабатываем видео для детекции
-        await handle_detection_video(message)
-        return
-    
     # v2.8.0: Проверка режима техобслуживания
     if is_maintenance_mode() and not is_admin(message.from_user):
         await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
@@ -5681,9 +5509,6 @@ async def cb_url_process(callback: CallbackQuery):
         cleanup_file(output_path)
         pending_urls.pop(short_id, None)
     
-    # v3.2.0: Проверяем доступ к Watermark-Trap (только Premium)
-    enable_watermark_trap = rate_limiter.can_use_watermark_trap(user_id)
-    
     task = ProcessingTask(
         user_id=user_id,
         input_path=output_path,
@@ -5692,8 +5517,7 @@ async def cb_url_process(callback: CallbackQuery):
         quality=quality,
         text_overlay=text_overlay,
         priority=priority,
-        template=template,
-        enable_watermark_trap=enable_watermark_trap
+        template=template
     )
     
     queued, position = await add_to_queue(task)

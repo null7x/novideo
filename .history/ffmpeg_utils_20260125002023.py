@@ -1106,8 +1106,7 @@ def kill_all_ffmpeg():
 class ProcessingTask:
     def __init__(self, user_id: int, input_path: str, mode: str, callback, 
                  quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
-                 priority: int = 0, template: str = "none",
-                 enable_watermark_trap: bool = False):
+                 priority: int = 0, template: str = "none"):
         self.user_id = user_id
         self.input_path = input_path
         self.mode = mode
@@ -1115,7 +1114,6 @@ class ProcessingTask:
         self.quality = quality
         self.text_overlay = text_overlay
         self.template = template  # v3.1.0: шаблон видео
-        self.enable_watermark_trap = enable_watermark_trap  # v3.2.0: Watermark-Trap
         self.output_path = str(get_temp_dir() / generate_unique_filename())
         self.priority = priority  # 0=free, 1=vip, 2=premium
         self.cancelled = False
@@ -1146,12 +1144,10 @@ async def worker():
         try:
             success = await process_video(
                 task.input_path, task.output_path, task.mode,
-                task.quality, task.text_overlay, task.template,
-                user_id=task.user_id,
-                enable_watermark_trap=task.enable_watermark_trap
+                task.quality, task.text_overlay, task.template
             )
             
-            print(f"[WORKER] Process result: success={success}, watermark_trap={task.enable_watermark_trap}")
+            print(f"[WORKER] Process result: success={success}")
             
             # v3.1.1: Автоматическое сжатие если файл > 49MB (Telegram limit = 50MB)
             TELEGRAM_MAX_SIZE = 49 * 1024 * 1024  # 49MB с запасом

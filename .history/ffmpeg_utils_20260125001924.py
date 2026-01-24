@@ -903,29 +903,6 @@ async def get_video_duration(input_path: str) -> float:
     return 0.0
 
 
-async def _check_has_audio(input_path: str) -> bool:
-    """Проверяет наличие аудио потока в видео"""
-    cmd = [
-        FFPROBE_PATH,
-        "-v", "error",
-        "-select_streams", "a:0",
-        "-show_entries", "stream=codec_type",
-        "-of", "csv=p=0",
-        input_path
-    ]
-    
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-        return bool(stdout.decode().strip())
-    except Exception:
-        return True  # Assume has audio on error
-
-
 def _generate_random_timestamp() -> str:
     """Генерация рандомного timestamp для anti-source pattern"""
     import datetime
@@ -939,22 +916,16 @@ def _generate_random_timestamp() -> str:
 
 async def process_video(input_path: str, output_path: str, mode: str, 
                         quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
-                        template: str = "none", user_id: int = 0,
-                        enable_watermark_trap: bool = False) -> bool:
+                        template: str = "none") -> bool:
     """
     ANTI-TIKTOK 2026 Video Processing - поддержка до 8K 120FPS
-    + пресеты качества, опциональный текст, шаблоны и Watermark-Trap
-    
-    Args:
-        user_id: ID пользователя для Watermark-Trap
-        enable_watermark_trap: Включить невидимый цифровой отпечаток
+    + пресеты качества, опциональный текст и шаблоны
     """
     info = await get_video_info(input_path)
     if not info:
         return False
     
     width, height, duration, source_fps = info
-    has_audio = await _check_has_audio(input_path)
     
     # Сохраняем оригинальный FPS (до 120)
     target_fps = min(source_fps, 120)
@@ -982,25 +953,6 @@ async def process_video(input_path: str, output_path: str, mode: str,
             video_filter = f"setpts={1/template_speed}*PTS," + video_filter
             # Модифицируем аудио темп
             audio_filter = f"atempo={template_speed}," + audio_filter
-    
-    # v3.2.0: Watermark-Trap - невидимый цифровой отпечаток
-    trap_signature = None
-    watermark_extra_params = []
-    
-    if enable_watermark_trap and WATERMARK_TRAP_AVAILABLE and WATERMARK_TRAP_ENABLED and user_id > 0:
-        try:
-            video_filter, audio_filter, watermark_extra_params, trap_signature = apply_watermark_trap(
-                user_id=user_id,
-                input_path=input_path,
-                existing_video_filter=video_filter,
-                existing_audio_filter=audio_filter,
-                width=width,
-                height=height,
-                has_audio=has_audio
-            )
-            print(f"[TRAP] Watermark-Trap applied for user {user_id}, sig: {trap_signature.full_signature[:16]}...")
-        except Exception as e:
-            print(f"[TRAP] Failed to apply Watermark-Trap: {e}")
     
     # Рандомный encoder profile для anti-source pattern
     profile = params.get("profile", "main")
@@ -1043,20 +995,12 @@ async def process_video(input_path: str, output_path: str, mode: str,
         "-flags:v", "+bitexact",
         "-flags:a", "+bitexact",
         "-movflags", "+faststart",
+        output_path
     ]
-    
-    # v3.2.0: Добавляем Watermark-Trap параметры (metadata, encoding)
-    if watermark_extra_params:
-        # Вставляем перед output_path
-        cmd.extend(watermark_extra_params)
-    
-    cmd.append(output_path)
     
     # DEBUG: выводим команду
     print(f"[FFMPEG] CMD: {' '.join(cmd[:6])} ... {output_path}")
     print(f"[FFMPEG] VF length: {len(video_filter)}")
-    if trap_signature:
-        print(f"[FFMPEG] Watermark-Trap: enabled")
     
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -1106,8 +1050,7 @@ def kill_all_ffmpeg():
 class ProcessingTask:
     def __init__(self, user_id: int, input_path: str, mode: str, callback, 
                  quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
-                 priority: int = 0, template: str = "none",
-                 enable_watermark_trap: bool = False):
+                 priority: int = 0, template: str = "none"):
         self.user_id = user_id
         self.input_path = input_path
         self.mode = mode
@@ -1115,7 +1058,6 @@ class ProcessingTask:
         self.quality = quality
         self.text_overlay = text_overlay
         self.template = template  # v3.1.0: шаблон видео
-        self.enable_watermark_trap = enable_watermark_trap  # v3.2.0: Watermark-Trap
         self.output_path = str(get_temp_dir() / generate_unique_filename())
         self.priority = priority  # 0=free, 1=vip, 2=premium
         self.cancelled = False
@@ -1146,12 +1088,10 @@ async def worker():
         try:
             success = await process_video(
                 task.input_path, task.output_path, task.mode,
-                task.quality, task.text_overlay, task.template,
-                user_id=task.user_id,
-                enable_watermark_trap=task.enable_watermark_trap
+                task.quality, task.text_overlay, task.template
             )
             
-            print(f"[WORKER] Process result: success={success}, watermark_trap={task.enable_watermark_trap}")
+            print(f"[WORKER] Process result: success={success}")
             
             # v3.1.1: Автоматическое сжатие если файл > 49MB (Telegram limit = 50MB)
             TELEGRAM_MAX_SIZE = 49 * 1024 * 1024  # 49MB с запасом

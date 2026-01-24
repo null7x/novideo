@@ -735,66 +735,6 @@ async def cb_cancel_detection(callback: CallbackQuery):
         await callback.message.edit_text("✅ Режим детекции отменён")
     await callback.answer()
 
-
-async def handle_detection_video(message: Message):
-    """
-    Обработка видео для детекции Watermark-Trap
-    """
-    user_id = message.from_user.id
-    lang = rate_limiter.get_language(user_id)
-    
-    if not WATERMARK_TRAP_DETECTION_AVAILABLE:
-        if lang == "en":
-            await message.answer("❌ Detection module is not available")
-        else:
-            await message.answer("❌ Модуль детекции недоступен")
-        return
-    
-    # Статус
-    if lang == "en":
-        status_msg = await message.answer("🔍 Analyzing video for Watermark-Trap...")
-    else:
-        status_msg = await message.answer("🔍 Анализирую видео на наличие Watermark-Trap...")
-    
-    try:
-        # Скачиваем видео
-        if message.video:
-            file = message.video
-        elif message.document:
-            file = message.document
-        else:
-            await status_msg.edit_text("❌ Video not found" if lang == "en" else "❌ Видео не найдено")
-            return
-        
-        # Скачиваем файл
-        temp_path = str(get_temp_dir() / f"detect_{generate_unique_filename()}")
-        
-        try:
-            file_info = await bot.get_file(file.file_id)
-            await bot.download_file(file_info.file_path, temp_path)
-        except Exception as e:
-            logger.error(f"Detection download error: {e}")
-            await status_msg.edit_text(
-                "❌ Failed to download video" if lang == "en" else "❌ Не удалось скачать видео"
-            )
-            return
-        
-        # Запускаем детекцию
-        detector = get_trap_detector()
-        result = await detector.detect(temp_path)
-        
-        # Удаляем временный файл
-        cleanup_file(temp_path)
-        
-        # Показываем результат
-        await status_msg.edit_text(result.to_message(lang))
-        
-    except Exception as e:
-        logger.error(f"Detection error: {e}")
-        await status_msg.edit_text(
-            f"❌ Detection error: {e}" if lang == "en" else f"❌ Ошибка детекции: {e}"
-        )
-
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN COMMANDS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4531,15 +4471,6 @@ async def handle_audio(message: Message):
 @dp.message(F.video | F.document)
 async def handle_video(message: Message):
     user_id = message.from_user.id
-    
-    # v3.2.0: Проверяем режим детекции Watermark-Trap
-    if user_id in pending_detection:
-        # Удаляем из ожидания
-        pending_detection.pop(user_id, None)
-        
-        # Обрабатываем видео для детекции
-        await handle_detection_video(message)
-        return
     
     # v2.8.0: Проверка режима техобслуживания
     if is_maintenance_mode() and not is_admin(message.from_user):

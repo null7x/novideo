@@ -1146,12 +1146,10 @@ async def worker():
         try:
             success = await process_video(
                 task.input_path, task.output_path, task.mode,
-                task.quality, task.text_overlay, task.template,
-                user_id=task.user_id,
-                enable_watermark_trap=task.enable_watermark_trap
+                task.quality, task.text_overlay, task.template
             )
             
-            print(f"[WORKER] Process result: success={success}, watermark_trap={task.enable_watermark_trap}")
+            print(f"[WORKER] Process result: success={success}")
             
             # v3.1.1: Автоматическое сжатие если файл > 49MB (Telegram limit = 50MB)
             TELEGRAM_MAX_SIZE = 49 * 1024 * 1024  # 49MB с запасом
