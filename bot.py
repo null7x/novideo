@@ -849,7 +849,7 @@ async def cmd_safecheck(message: Message):
     lang = rate_limiter.get_language(user_id)
     
     # Проверка доступа (VIP+)
-    user_plan = rate_limiter.get_user_plan(user_id)
+    user_plan = rate_limiter.get_plan(user_id)
     if user_plan not in ["vip", "premium"]:
         if lang == "en":
             await message.answer(
@@ -942,7 +942,7 @@ async def cmd_scan(message: Message):
     lang = rate_limiter.get_language(user_id)
     
     # Проверка доступа (VIP+)
-    user_plan = rate_limiter.get_user_plan(user_id)
+    user_plan = rate_limiter.get_plan(user_id)
     if user_plan not in ["vip", "premium"]:
         if lang == "en":
             await message.answer(
@@ -1050,7 +1050,7 @@ async def cmd_analytics(message: Message):
     lang = rate_limiter.get_language(user_id)
     
     # Проверка доступа (VIP+)
-    user_plan = rate_limiter.get_user_plan(user_id)
+    user_plan = rate_limiter.get_plan(user_id)
     if user_plan not in ["vip", "premium"]:
         if lang == "en":
             await message.answer(
