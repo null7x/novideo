@@ -486,7 +486,7 @@ def _apply_template_filters(base_filters: List[str], template: str, width: int, 
     # Speed modification будет обрабатываться отдельно
     # (не через фильтры, т.к. влияет на pts и audio)
     
-    return result_filters + extra_filters
+    return base_filters + extra_filters
 
 def _get_template_speed(template: str) -> float:
     """Получить модификатор скорости из шаблона"""
