@@ -8,6 +8,8 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
+from typing import Dict
+from datetime import datetime
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, CallbackQuery, FSInputFile,
@@ -44,6 +46,19 @@ try:
     WATERMARK_TRAP_DETECTION_AVAILABLE = True
 except ImportError:
     WATERMARK_TRAP_DETECTION_AVAILABLE = False
+
+# v3.3.0: Virex Shield — Content Protection System
+try:
+    from content_protection import (
+        get_virex_shield, VirexShield,
+        RiskLevel, DigitalPassport, SafeCheckResult,
+        ScanResult, TheftReport, UserAnalytics,
+        get_preset_message, SMART_PRESETS
+    )
+    VIREX_SHIELD_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] Virex Shield not available: {e}")
+    VIREX_SHIELD_AVAILABLE = False
 
 import time as time_module
 
@@ -794,6 +809,486 @@ async def handle_detection_video(message: Message):
         await status_msg.edit_text(
             f"❌ Detection error: {e}" if lang == "en" else f"❌ Ошибка детекции: {e}"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 🛡️ VIREX SHIELD COMMANDS — Система защиты контента
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Режимы ожидания для shield-функций
+pending_safecheck: Dict[int, float] = {}
+pending_scan: Dict[int, float] = {}
+
+
+@dp.message(Command("shield"))
+async def cmd_shield(message: Message):
+    """
+    /shield — информация о системе защиты Virex Shield
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Virex Shield module is not available")
+        else:
+            await message.answer("❌ Модуль Virex Shield недоступен")
+        return
+    
+    shield = get_virex_shield()
+    await message.answer(shield.get_shield_info(lang))
+
+
+@dp.message(Command("safecheck"))
+async def cmd_safecheck(message: Message):
+    """
+    /safecheck — AI Safe-Check видео перед публикацией
+    Доступно для VIP+ пользователей
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    # Проверка доступа (VIP+)
+    user_plan = rate_limiter.get_user_plan(user_id)
+    if user_plan not in ["vip", "premium"]:
+        if lang == "en":
+            await message.answer(
+                "🛡 <b>AI Safe-Check</b>\n\n"
+                "This feature is available for VIP and Premium users.\n\n"
+                "Safe-Check analyzes your video and shows:\n"
+                "• Originality score\n"
+                "• Ban probability\n"
+                "• Strike risk\n"
+                "• Shadow ban risk\n\n"
+                "Upgrade your plan to use this feature!"
+            )
+        else:
+            await message.answer(
+                "🛡 <b>AI Safe-Check</b>\n\n"
+                "Эта функция доступна для VIP и Premium пользователей.\n\n"
+                "Safe-Check анализирует видео и показывает:\n"
+                "• Оценку оригинальности\n"
+                "• Вероятность бана\n"
+                "• Риск страйка\n"
+                "• Риск теневого бана\n\n"
+                "Повысьте свой план!"
+            )
+        return
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Safe-Check module is not available")
+        else:
+            await message.answer("❌ Модуль Safe-Check недоступен")
+        return
+    
+    # Ставим режим ожидания
+    pending_safecheck[user_id] = time_module.time()
+    
+    cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="❌ Отменить" if lang == "ru" else "❌ Cancel",
+            callback_data="cancel_safecheck"
+        )]
+    ])
+    
+    if lang == "en":
+        await message.answer(
+            "🛡 <b>AI Safe-Check</b>\n\n"
+            "Send your video for analysis.\n\n"
+            "I will check:\n"
+            "• Originality compared to our database\n"
+            "• Ban probability on platforms\n"
+            "• Strike risk\n"
+            "• Shadow ban risk\n\n"
+            "⏳ Waiting for video...",
+            reply_markup=cancel_kb
+        )
+    else:
+        await message.answer(
+            "🛡 <b>AI Safe-Check</b>\n\n"
+            "Отправьте видео для анализа.\n\n"
+            "Я проверю:\n"
+            "• Оригинальность по базе\n"
+            "• Вероятность бана на платформах\n"
+            "• Риск страйка\n"
+            "• Риск теневого бана\n\n"
+            "⏳ Жду видео...",
+            reply_markup=cancel_kb
+        )
+
+
+@dp.callback_query(F.data == "cancel_safecheck")
+async def cb_cancel_safecheck(callback: CallbackQuery):
+    """Отмена режима safe-check"""
+    user_id = callback.from_user.id
+    pending_safecheck.pop(user_id, None)
+    
+    lang = rate_limiter.get_language(user_id)
+    if lang == "en":
+        await callback.message.edit_text("✅ Safe-Check cancelled")
+    else:
+        await callback.message.edit_text("✅ Safe-Check отменён")
+    await callback.answer()
+
+
+@dp.message(Command("scan"))
+async def cmd_scan(message: Message):
+    """
+    /scan — сканирование видео на совпадения в базе
+    Доступно для VIP+ пользователей
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    # Проверка доступа (VIP+)
+    user_plan = rate_limiter.get_user_plan(user_id)
+    if user_plan not in ["vip", "premium"]:
+        if lang == "en":
+            await message.answer(
+                "🔍 <b>Content Scanner</b>\n\n"
+                "This feature is available for VIP and Premium users.\n\n"
+                "Scanner searches our database for:\n"
+                "• Similar videos\n"
+                "• Potential copies\n"
+                "• Stolen content\n\n"
+                "Upgrade your plan to use this feature!"
+            )
+        else:
+            await message.answer(
+                "🔍 <b>Сканер контента</b>\n\n"
+                "Эта функция доступна для VIP и Premium пользователей.\n\n"
+                "Сканер ищет в базе:\n"
+                "• Похожие видео\n"
+                "• Потенциальные копии\n"
+                "• Украденный контент\n\n"
+                "Повысьте свой план!"
+            )
+        return
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Scanner module is not available")
+        else:
+            await message.answer("❌ Модуль сканера недоступен")
+        return
+    
+    # Ставим режим ожидания
+    pending_scan[user_id] = time_module.time()
+    
+    cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="❌ Отменить" if lang == "ru" else "❌ Cancel",
+            callback_data="cancel_scan"
+        )]
+    ])
+    
+    if lang == "en":
+        await message.answer(
+            "🔍 <b>Content Scanner</b>\n\n"
+            "Send a video to scan against our database.\n\n"
+            "I will find:\n"
+            "• Similar videos in our database\n"
+            "• Similarity percentage\n"
+            "• Risk assessment\n"
+            "• Original source (if found)\n\n"
+            "⏳ Waiting for video...",
+            reply_markup=cancel_kb
+        )
+    else:
+        await message.answer(
+            "🔍 <b>Сканер контента</b>\n\n"
+            "Отправьте видео для поиска в базе.\n\n"
+            "Я найду:\n"
+            "• Похожие видео в базе\n"
+            "• Процент схожести\n"
+            "• Оценку риска\n"
+            "• Оригинальный источник (если найден)\n\n"
+            "⏳ Жду видео...",
+            reply_markup=cancel_kb
+        )
+
+
+@dp.callback_query(F.data == "cancel_scan")
+async def cb_cancel_scan(callback: CallbackQuery):
+    """Отмена режима сканирования"""
+    user_id = callback.from_user.id
+    pending_scan.pop(user_id, None)
+    
+    lang = rate_limiter.get_language(user_id)
+    if lang == "en":
+        await callback.message.edit_text("✅ Scan cancelled")
+    else:
+        await callback.message.edit_text("✅ Сканирование отменено")
+    await callback.answer()
+
+
+@dp.message(Command("presets"))
+async def cmd_presets(message: Message):
+    """
+    /presets — список умных пресетов для платформ
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Presets module is not available")
+        else:
+            await message.answer("❌ Модуль пресетов недоступен")
+        return
+    
+    await message.answer(get_preset_message(lang))
+
+
+@dp.message(Command("analytics"))
+async def cmd_analytics(message: Message):
+    """
+    /analytics — персональная аналитика (VIP+)
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    # Проверка доступа (VIP+)
+    user_plan = rate_limiter.get_user_plan(user_id)
+    if user_plan not in ["vip", "premium"]:
+        if lang == "en":
+            await message.answer(
+                "📊 <b>Personal Analytics</b>\n\n"
+                "This feature is available for VIP and Premium users.\n\n"
+                "Track your:\n"
+                "• Videos processed\n"
+                "• Scans performed\n"
+                "• Matches found\n"
+                "• Protection statistics\n\n"
+                "Upgrade your plan to see analytics!"
+            )
+        else:
+            await message.answer(
+                "📊 <b>Персональная аналитика</b>\n\n"
+                "Эта функция доступна для VIP и Premium пользователей.\n\n"
+                "Отслеживайте:\n"
+                "• Обработанные видео\n"
+                "• Выполненные проверки\n"
+                "• Найденные совпадения\n"
+                "• Статистику защиты\n\n"
+                "Повысьте план для просмотра аналитики!"
+            )
+        return
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Analytics module is not available")
+        else:
+            await message.answer("❌ Модуль аналитики недоступен")
+        return
+    
+    shield = get_virex_shield()
+    analytics = shield.get_user_analytics(user_id)
+    await message.answer(analytics.to_message(lang))
+
+
+@dp.message(Command("passport"))
+async def cmd_passport(message: Message):
+    """
+    /passport [ID] — просмотр цифрового паспорта
+    Без ID — список своих паспортов
+    """
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Passport module is not available")
+        else:
+            await message.answer("❌ Модуль паспортов недоступен")
+        return
+    
+    shield = get_virex_shield()
+    args = message.text.split()
+    
+    if len(args) > 1:
+        # Просмотр конкретного паспорта
+        passport_id = args[1]
+        passport = shield.get_passport(passport_id)
+        
+        if not passport:
+            if lang == "en":
+                await message.answer(f"❌ Passport {passport_id} not found")
+            else:
+                await message.answer(f"❌ Паспорт {passport_id} не найден")
+            return
+        
+        # Верифицируем
+        shield.verify_passport(passport_id)
+        
+        created = datetime.fromtimestamp(passport.created_at).strftime('%d.%m.%Y %H:%M')
+        
+        if lang == "en":
+            text = (
+                f"🪪 <b>DIGITAL PASSPORT</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"<b>ID:</b> <code>{passport.passport_id}</code>\n"
+                f"<b>Owner:</b> @{passport.owner_username or f'user_{passport.owner_user_id}'}\n"
+                f"<b>Created:</b> {created}\n\n"
+                f"<b>Video info:</b>\n"
+                f"   • Hash: <code>{passport.video_hash[:16]}...</code>\n"
+                f"   • Size: {passport.file_size_bytes // 1024} KB\n"
+                f"   • Duration: {passport.duration_seconds:.1f}s\n"
+                f"   • Template: {passport.template_used or 'N/A'}\n\n"
+                f"<b>Protection:</b>\n"
+                f"   • Verifications: {passport.verification_count}\n"
+                f"   • Matches found: {passport.matches_found}\n"
+                f"   • Trap enabled: {'✅' if passport.trap_enabled else '❌'}"
+            )
+        else:
+            text = (
+                f"🪪 <b>ЦИФРОВОЙ ПАСПОРТ</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"<b>ID:</b> <code>{passport.passport_id}</code>\n"
+                f"<b>Владелец:</b> @{passport.owner_username or f'user_{passport.owner_user_id}'}\n"
+                f"<b>Создан:</b> {created}\n\n"
+                f"<b>Информация о видео:</b>\n"
+                f"   • Хеш: <code>{passport.video_hash[:16]}...</code>\n"
+                f"   • Размер: {passport.file_size_bytes // 1024} KB\n"
+                f"   • Длительность: {passport.duration_seconds:.1f}с\n"
+                f"   • Шаблон: {passport.template_used or 'Н/Д'}\n\n"
+                f"<b>Защита:</b>\n"
+                f"   • Верификаций: {passport.verification_count}\n"
+                f"   • Совпадений: {passport.matches_found}\n"
+                f"   • Trap включен: {'✅' if passport.trap_enabled else '❌'}"
+            )
+        
+        await message.answer(text)
+    else:
+        # Список своих паспортов
+        passports = shield.get_user_passports(user_id)
+        
+        if not passports:
+            if lang == "en":
+                await message.answer(
+                    "🪪 <b>Your Passports</b>\n\n"
+                    "You don't have any digital passports yet.\n\n"
+                    "Passports are created automatically when you process videos.\n"
+                    "They help prove ownership of your content."
+                )
+            else:
+                await message.answer(
+                    "🪪 <b>Ваши паспорта</b>\n\n"
+                    "У вас пока нет цифровых паспортов.\n\n"
+                    "Паспорта создаются автоматически при обработке видео.\n"
+                    "Они помогают доказать владение контентом."
+                )
+            return
+        
+        # Показываем последние 10
+        recent = sorted(passports, key=lambda p: p.created_at, reverse=True)[:10]
+        
+        if lang == "en":
+            text = f"🪪 <b>Your Passports</b> ({len(passports)} total)\n\n"
+            for p in recent:
+                created = datetime.fromtimestamp(p.created_at).strftime('%d.%m')
+                text += f"• <code>{p.passport_id}</code> — {created}\n"
+            text += f"\nUse <code>/passport ID</code> to view details."
+        else:
+            text = f"🪪 <b>Ваши паспорта</b> (всего {len(passports)})\n\n"
+            for p in recent:
+                created = datetime.fromtimestamp(p.created_at).strftime('%d.%m')
+                text += f"• <code>{p.passport_id}</code> — {created}\n"
+            text += f"\nИспользуйте <code>/passport ID</code> для деталей."
+        
+        await message.answer(text)
+
+
+async def handle_safecheck_video(message: Message):
+    """Обработка видео для Safe-Check"""
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Safe-Check module is not available")
+        else:
+            await message.answer("❌ Модуль Safe-Check недоступен")
+        return
+    
+    status_msg = await message.answer(
+        "🔄 Analyzing..." if lang == "en" else "🔄 Анализирую..."
+    )
+    
+    try:
+        # Скачиваем видео
+        video = message.video or message.document
+        file = await bot.get_file(video.file_id)
+        
+        temp_dir = get_temp_dir()
+        temp_path = os.path.join(temp_dir, f"safecheck_{user_id}_{int(time_module.time())}.mp4")
+        
+        await bot.download_file(file.file_path, temp_path)
+        
+        # Запускаем Safe-Check
+        shield = get_virex_shield()
+        result = await shield.safe_check(temp_path, user_id, processed=False)
+        
+        # Удаляем временный файл
+        cleanup_file(temp_path)
+        
+        # Показываем результат
+        await status_msg.edit_text(result.to_message(lang))
+        
+    except Exception as e:
+        logger.error(f"Safe-Check error: {e}")
+        await status_msg.edit_text(
+            f"❌ Error: {e}" if lang == "en" else f"❌ Ошибка: {e}"
+        )
+    finally:
+        pending_safecheck.pop(user_id, None)
+
+
+async def handle_scan_video(message: Message):
+    """Обработка видео для сканирования"""
+    user_id = message.from_user.id
+    lang = rate_limiter.get_language(user_id)
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        if lang == "en":
+            await message.answer("❌ Scanner module is not available")
+        else:
+            await message.answer("❌ Модуль сканера недоступен")
+        return
+    
+    status_msg = await message.answer(
+        "🔄 Scanning..." if lang == "en" else "🔄 Сканирую..."
+    )
+    
+    try:
+        # Скачиваем видео
+        video = message.video or message.document
+        file = await bot.get_file(video.file_id)
+        
+        temp_dir = get_temp_dir()
+        temp_path = os.path.join(temp_dir, f"scan_{user_id}_{int(time_module.time())}.mp4")
+        
+        await bot.download_file(file.file_path, temp_path)
+        
+        # Запускаем сканирование
+        shield = get_virex_shield()
+        result = await shield.scan_for_matches(temp_path, user_id)
+        
+        # Удаляем временный файл
+        cleanup_file(temp_path)
+        
+        # Показываем результат
+        await status_msg.edit_text(result.to_message(lang))
+        
+    except Exception as e:
+        logger.error(f"Scan error: {e}")
+        await status_msg.edit_text(
+            f"❌ Error: {e}" if lang == "en" else f"❌ Ошибка: {e}"
+        )
+    finally:
+        pending_scan.pop(user_id, None)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN COMMANDS
@@ -4541,6 +5036,18 @@ async def handle_video(message: Message):
         await handle_detection_video(message)
         return
     
+    # v3.3.0: Проверяем режим Safe-Check
+    if user_id in pending_safecheck:
+        pending_safecheck.pop(user_id, None)
+        await handle_safecheck_video(message)
+        return
+    
+    # v3.3.0: Проверяем режим сканирования
+    if user_id in pending_scan:
+        pending_scan.pop(user_id, None)
+        await handle_scan_video(message)
+        return
+    
     # v2.8.0: Проверка режима техобслуживания
     if is_maintenance_mode() and not is_admin(message.from_user):
         await message.answer(get_text(user_id, "maintenance_mode", minutes=5))
@@ -4822,6 +5329,14 @@ async def cb_process(callback: CallbackQuery):
                 rate_limiter.add_to_history(user_id, "unique", "file")
                 # v2.8.0: Добавляем в лог
                 rate_limiter.add_log(user_id, "video_processed", "file")
+                
+                # v3.3.0: Virex Shield — аналитика и паспорт
+                if VIREX_SHIELD_AVAILABLE:
+                    try:
+                        shield = get_virex_shield()
+                        shield.record_processing(user_id, template=task.template, mode=task.mode.value if task.mode else "")
+                    except Exception as shield_err:
+                        logger.warning(f"[SHIELD] Analytics error: {shield_err}")
                 
                 # v2.9.0: Gamification
                 new_level, level_up = rate_limiter.add_points(user_id, 10, "video_processed")
