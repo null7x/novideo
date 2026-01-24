@@ -5891,7 +5891,7 @@ def get_url_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=get_button(user_id, "download_only"), callback_data=f"url_download:{short_id}")],
     ])
 
-@dp.message(F.text)
+@dp.message(F.text & ~F.text.startswith("/"))
 async def handle_url(message: Message):
     user_id = message.from_user.id
     text = message.text.strip()
