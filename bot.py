@@ -192,6 +192,7 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
+            [InlineKeyboardButton(text="🛡️ VIREX SHIELD", callback_data="shield_menu")],
             [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
     else:
@@ -202,6 +203,7 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=get_button(user_id, "settings"), callback_data="settings"),
                 InlineKeyboardButton(text=get_button(user_id, "how_it_works"), callback_data="how_it_works"),
             ],
+            [InlineKeyboardButton(text="🛡️ VIREX SHIELD", callback_data="shield_menu")],
             [InlineKeyboardButton(text=get_button(user_id, "help"), callback_data="help")],
         ])
 
@@ -4380,6 +4382,321 @@ async def cb_how_it_works(callback: CallbackQuery):
         reply_markup=get_how_it_works_keyboard(user_id)
     )
     await callback.answer()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 🛡️ VIREX SHIELD MENU — Кнопки системы защиты
+# ═══════════════════════════════════════════════════════════════════
+
+@dp.callback_query(F.data == "shield_menu")
+async def cb_shield_menu(callback: CallbackQuery):
+    """Меню VIREX SHIELD"""
+    user_id = callback.from_user.id
+    
+    if rate_limiter.check_button_spam(user_id):
+        await callback.answer()
+        return
+    
+    plan = rate_limiter.get_plan(user_id)
+    is_vip = plan in ["vip", "premium", "admin"]
+    is_premium = plan in ["premium", "admin"]
+    
+    # Базовые кнопки (доступны всем)
+    buttons = [
+        [InlineKeyboardButton(text="🛡️ О системе SHIELD", callback_data="shield_info")],
+        [InlineKeyboardButton(text="🎨 Smart Presets", callback_data="shield_presets")],
+        [InlineKeyboardButton(text="🎫 Мои паспорта", callback_data="shield_passport")],
+    ]
+    
+    # VIP+ кнопки
+    if is_vip:
+        buttons.append([InlineKeyboardButton(text="🔍 AI Safe-Check", callback_data="shield_safecheck")])
+        buttons.append([InlineKeyboardButton(text="📡 Scanner", callback_data="shield_scan")])
+        buttons.append([InlineKeyboardButton(text="📊 Analytics", callback_data="shield_analytics")])
+    else:
+        buttons.append([InlineKeyboardButton(text="🔒 AI Safe-Check (VIP)", callback_data="need_vip")])
+        buttons.append([InlineKeyboardButton(text="🔒 Scanner (VIP)", callback_data="need_vip")])
+        buttons.append([InlineKeyboardButton(text="🔒 Analytics (VIP)", callback_data="need_vip")])
+    
+    # Premium кнопка
+    if is_premium:
+        buttons.append([InlineKeyboardButton(text="🕵️ Detect Watermark", callback_data="shield_detect")])
+    else:
+        buttons.append([InlineKeyboardButton(text="🔒 Detect (Premium)", callback_data="need_premium")])
+    
+    # Назад
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    text = (
+        "🛡️ <b>VIREX SHIELD</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<i>Комплексная система защиты контента</i>\n\n"
+        "🎨 <b>Smart Presets</b> — готовые настройки\n"
+        "🔍 <b>Safe-Check</b> — AI анализ рисков\n"
+        "📡 <b>Scanner</b> — определение платформы\n"
+        "🎫 <b>Passports</b> — цифровые паспорта\n"
+        "📊 <b>Analytics</b> — статистика защиты\n"
+        "🕵️ <b>Detect</b> — поиск Watermark-Trap\n\n"
+        f"📋 Ваш план: <b>{plan.upper()}</b>"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_info")
+async def cb_shield_info(callback: CallbackQuery):
+    """Информация о VIREX SHIELD"""
+    user_id = callback.from_user.id
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        await callback.answer("❌ SHIELD недоступен", show_alert=True)
+        return
+    
+    shield = get_virex_shield()
+    lang = rate_limiter.get_language(user_id)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="shield_menu")]
+    ])
+    
+    await callback.message.edit_text(shield.get_shield_info(lang), reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_presets")
+async def cb_shield_presets(callback: CallbackQuery):
+    """Список Smart Presets"""
+    user_id = callback.from_user.id
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        await callback.answer("❌ SHIELD недоступен", show_alert=True)
+        return
+    
+    lang = rate_limiter.get_language(user_id)
+    
+    # Кнопки для каждого пресета
+    preset_buttons = []
+    for preset_id, preset in SMART_PRESETS.items():
+        icon = preset.get("icon", "🎯")
+        name = preset.get("name_ru" if lang == "ru" else "name", preset_id)
+        preset_buttons.append([
+            InlineKeyboardButton(text=f"{icon} {name}", callback_data=f"apply_preset:{preset_id}")
+        ])
+    
+    preset_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="shield_menu")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=preset_buttons)
+    
+    text = (
+        "🎨 <b>SMART PRESETS</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<i>Выберите пресет для автоматической настройки:</i>\n\n"
+        "Каждый пресет оптимизирован под конкретную платформу "
+        "и тип контента для максимальной защиты."
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("apply_preset:"))
+async def cb_apply_preset(callback: CallbackQuery):
+    """Применить Smart Preset"""
+    user_id = callback.from_user.id
+    preset_id = callback.data.split(":")[1]
+    
+    if preset_id not in SMART_PRESETS:
+        await callback.answer("❌ Пресет не найден", show_alert=True)
+        return
+    
+    preset = SMART_PRESETS[preset_id]
+    settings = preset.get("settings", {})
+    
+    # Применяем настройки
+    if "template" in settings:
+        rate_limiter.set_template(user_id, settings["template"])
+    if "anti_level" in settings:
+        rate_limiter.set_anti_reupload_level(user_id, settings["anti_level"])
+    if "quality" in settings:
+        rate_limiter.set_quality(user_id, settings["quality"])
+    
+    lang = rate_limiter.get_language(user_id)
+    name = preset.get("name_ru" if lang == "ru" else "name", preset_id)
+    icon = preset.get("icon", "🎯")
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎨 Другие пресеты", callback_data="shield_presets")],
+        [InlineKeyboardButton(text="◀️ В меню SHIELD", callback_data="shield_menu")]
+    ])
+    
+    text = (
+        f"✅ <b>Пресет применён!</b>\n\n"
+        f"{icon} <b>{name}</b>\n\n"
+        f"📋 Настройки обновлены:\n"
+        f"• Шаблон: {settings.get('template', 'default')}\n"
+        f"• Защита: {settings.get('anti_level', 'medium')}\n"
+        f"• Качество: {settings.get('quality', 'medium')}"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer(f"✅ {name} применён!")
+
+
+@dp.callback_query(F.data == "shield_passport")
+async def cb_shield_passport(callback: CallbackQuery):
+    """Показать паспорта пользователя"""
+    user_id = callback.from_user.id
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        await callback.answer("❌ SHIELD недоступен", show_alert=True)
+        return
+    
+    shield = get_virex_shield()
+    lang = rate_limiter.get_language(user_id)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="shield_menu")]
+    ])
+    
+    await callback.message.edit_text(shield.get_user_passports(user_id, lang), reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_safecheck")
+async def cb_shield_safecheck(callback: CallbackQuery):
+    """Запуск Safe-Check"""
+    user_id = callback.from_user.id
+    
+    plan = rate_limiter.get_plan(user_id)
+    if plan not in ["vip", "premium", "admin"]:
+        await callback.answer("🔒 Требуется VIP подписка", show_alert=True)
+        return
+    
+    pending_safecheck[user_id] = True
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="shield_menu")]
+    ])
+    
+    text = (
+        "🔍 <b>AI SAFE-CHECK</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📹 <b>Отправьте видео</b> для анализа рисков.\n\n"
+        "AI проанализирует контент и определит:\n"
+        "• 📊 Уровень риска детекции\n"
+        "• 🎯 Рекомендуемые настройки\n"
+        "• ⚠️ Потенциальные проблемы"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_scan")
+async def cb_shield_scan(callback: CallbackQuery):
+    """Запуск Scanner"""
+    user_id = callback.from_user.id
+    
+    plan = rate_limiter.get_plan(user_id)
+    if plan not in ["vip", "premium", "admin"]:
+        await callback.answer("🔒 Требуется VIP подписка", show_alert=True)
+        return
+    
+    pending_scan[user_id] = True
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="shield_menu")]
+    ])
+    
+    text = (
+        "📡 <b>CONTENT SCANNER</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📹 <b>Отправьте видео</b> для сканирования.\n\n"
+        "Scanner определит:\n"
+        "• 🎬 Оригинальную платформу\n"
+        "• 🔍 Технические характеристики\n"
+        "• 🛡️ Следы предыдущей обработки"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_analytics")
+async def cb_shield_analytics(callback: CallbackQuery):
+    """Показать аналитику"""
+    user_id = callback.from_user.id
+    
+    plan = rate_limiter.get_plan(user_id)
+    if plan not in ["vip", "premium", "admin"]:
+        await callback.answer("🔒 Требуется VIP подписка", show_alert=True)
+        return
+    
+    if not VIREX_SHIELD_AVAILABLE:
+        await callback.answer("❌ SHIELD недоступен", show_alert=True)
+        return
+    
+    shield = get_virex_shield()
+    lang = rate_limiter.get_language(user_id)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="shield_menu")]
+    ])
+    
+    await callback.message.edit_text(shield.get_analytics(user_id, lang), reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "shield_detect")
+async def cb_shield_detect(callback: CallbackQuery):
+    """Запуск Detect Watermark-Trap"""
+    user_id = callback.from_user.id
+    
+    plan = rate_limiter.get_plan(user_id)
+    if plan not in ["premium", "admin"]:
+        await callback.answer("🔒 Требуется Premium подписка", show_alert=True)
+        return
+    
+    # Используем существующий pending_detection если есть
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="shield_menu")]
+    ])
+    
+    text = (
+        "🕵️ <b>WATERMARK-TRAP DETECTOR</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📹 <b>Отправьте видео</b> для анализа.\n\n"
+        "Система проверит наличие:\n"
+        "• 🔍 Скрытых Watermark-Trap\n"
+        "• 📊 Невидимых метаданных\n"
+        "• 🎯 Следов VIREX обработки"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "need_vip")
+async def cb_need_vip(callback: CallbackQuery):
+    """Уведомление о необходимости VIP"""
+    await callback.answer(
+        "🔒 Эта функция доступна только для VIP+\n\n"
+        "Используйте /premium для апгрейда!",
+        show_alert=True
+    )
+
+
+@dp.callback_query(F.data == "need_premium")
+async def cb_need_premium(callback: CallbackQuery):
+    """Уведомление о необходимости Premium"""
+    await callback.answer(
+        "🔒 Эта функция доступна только для Premium\n\n"
+        "Используйте /premium для апгрейда!",
+        show_alert=True
+    )
 
 
 @dp.callback_query(F.data == "help")
