@@ -3054,7 +3054,7 @@ async def cb_auto_process(callback: CallbackQuery):
     short_id = callback.data.split(":")[1]
     
     # Проверка лимитов
-    can_process, reason = rate_limiter.can_process_video(user_id)
+    can_process, reason = rate_limiter.check_rate_limit(user_id)
     if not can_process:
         await callback.answer(reason, show_alert=True)
         return
