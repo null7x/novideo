@@ -268,17 +268,6 @@ class RateLimiter:
         self._reset_daily_if_needed(user_id)
         self._reset_weekly_if_needed(user_id)
         
-        # v3.2.0: Проверка бонусных видео (pay-as-you-go)
-        # Если есть бонусные видео — пропускаем лимиты
-        if self.has_bonus_videos(user_id):
-            # Cooldown всё равно проверяем для Free
-            if user.last_request_time > 0 and self.get_plan(user_id) == "free":
-                elapsed = now - user.last_request_time
-                if elapsed < limits.cooldown_seconds:
-                    remaining = int(limits.cooldown_seconds - elapsed)
-                    return False, f"cooldown:{remaining}"
-            return True, "bonus"  # Специальный флаг для использования бонуса
-        
         # Проверка дневного лимита
         if user.daily_videos >= limits.videos_per_day:
             return False, "daily_limit"
@@ -515,13 +504,8 @@ class RateLimiter:
     # STATISTICS
     # ═════════════════════════════════════════════════════════════
     
-    def increment_video_count(self, user_id: int, use_bonus: bool = False):
-        """ Увеличить счётчик обработанных видео 
-        
-        Args:
-            user_id: ID пользователя
-            use_bonus: True если используется бонусное видео (pay-as-you-go)
-        """
+    def increment_video_count(self, user_id: int):
+        """ Увеличить счётчик обработанных видео """
         import datetime
         user = self.get_user(user_id)
         today = datetime.date.today().isoformat()
@@ -534,12 +518,6 @@ class RateLimiter:
         user.total_videos += 1
         user.today_videos += 1
         user.last_process_time = time.time()
-        
-        # v3.2.0: Если используем бонусное видео — списываем его
-        if use_bonus:
-            self.use_bonus_video(user_id)
-            # Бонусные видео НЕ увеличивают daily/weekly лимиты
-            return
         
         # Дневной и недельный счётчики
         self._reset_daily_if_needed(user_id)

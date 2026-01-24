@@ -515,13 +515,8 @@ class RateLimiter:
     # STATISTICS
     # ═════════════════════════════════════════════════════════════
     
-    def increment_video_count(self, user_id: int, use_bonus: bool = False):
-        """ Увеличить счётчик обработанных видео 
-        
-        Args:
-            user_id: ID пользователя
-            use_bonus: True если используется бонусное видео (pay-as-you-go)
-        """
+    def increment_video_count(self, user_id: int):
+        """ Увеличить счётчик обработанных видео """
         import datetime
         user = self.get_user(user_id)
         today = datetime.date.today().isoformat()
@@ -534,12 +529,6 @@ class RateLimiter:
         user.total_videos += 1
         user.today_videos += 1
         user.last_process_time = time.time()
-        
-        # v3.2.0: Если используем бонусное видео — списываем его
-        if use_bonus:
-            self.use_bonus_video(user_id)
-            # Бонусные видео НЕ увеличивают daily/weekly лимиты
-            return
         
         # Дневной и недельный счётчики
         self._reset_daily_if_needed(user_id)

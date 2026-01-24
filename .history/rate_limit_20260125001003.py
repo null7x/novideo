@@ -268,17 +268,6 @@ class RateLimiter:
         self._reset_daily_if_needed(user_id)
         self._reset_weekly_if_needed(user_id)
         
-        # v3.2.0: Проверка бонусных видео (pay-as-you-go)
-        # Если есть бонусные видео — пропускаем лимиты
-        if self.has_bonus_videos(user_id):
-            # Cooldown всё равно проверяем для Free
-            if user.last_request_time > 0 and self.get_plan(user_id) == "free":
-                elapsed = now - user.last_request_time
-                if elapsed < limits.cooldown_seconds:
-                    remaining = int(limits.cooldown_seconds - elapsed)
-                    return False, f"cooldown:{remaining}"
-            return True, "bonus"  # Специальный флаг для использования бонуса
-        
         # Проверка дневного лимита
         if user.daily_videos >= limits.videos_per_day:
             return False, "daily_limit"
@@ -515,13 +504,8 @@ class RateLimiter:
     # STATISTICS
     # ═════════════════════════════════════════════════════════════
     
-    def increment_video_count(self, user_id: int, use_bonus: bool = False):
-        """ Увеличить счётчик обработанных видео 
-        
-        Args:
-            user_id: ID пользователя
-            use_bonus: True если используется бонусное видео (pay-as-you-go)
-        """
+    def increment_video_count(self, user_id: int):
+        """ Увеличить счётчик обработанных видео """
         import datetime
         user = self.get_user(user_id)
         today = datetime.date.today().isoformat()
@@ -534,12 +518,6 @@ class RateLimiter:
         user.total_videos += 1
         user.today_videos += 1
         user.last_process_time = time.time()
-        
-        # v3.2.0: Если используем бонусное видео — списываем его
-        if use_bonus:
-            self.use_bonus_video(user_id)
-            # Бонусные видео НЕ увеличивают daily/weekly лимиты
-            return
         
         # Дневной и недельный счётчики
         self._reset_daily_if_needed(user_id)
@@ -847,171 +825,6 @@ class RateLimiter:
         """ Получить доступные качества """
         limits = self.get_limits(user_id)
         return limits.quality_options or [Quality.LOW, Quality.MEDIUM, Quality.MAX]
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.2.0: ADVANCED PLAN CHECKS
-    # ═════════════════════════════════════════════════════════════
-    
-    def can_use_auto_unique(self, user_id: int) -> bool:
-        """Может ли использовать автоуникализацию"""
-        limits = self.get_limits(user_id)
-        return getattr(limits, 'has_auto_unique', False)
-    
-    def can_use_watermark_trap(self, user_id: int) -> bool:
-        """Может ли использовать watermark trap"""
-        limits = self.get_limits(user_id)
-        return getattr(limits, 'has_watermark_trap', False)
-    
-    def can_use_project_history(self, user_id: int) -> bool:
-        """Может ли использовать историю проектов"""
-        limits = self.get_limits(user_id)
-        return getattr(limits, 'has_project_history', False)
-    
-    def get_max_anti_reupload_level(self, user_id: int) -> str:
-        """Максимальный доступный уровень Anti-Reupload"""
-        limits = self.get_limits(user_id)
-        return getattr(limits, 'anti_reupload_level', 'low')
-    
-    def get_queue_priority(self, user_id: int) -> str:
-        """Приоритет в очереди: slow/priority/instant"""
-        limits = self.get_limits(user_id)
-        return getattr(limits, 'queue_priority', 'slow')
-    
-    def get_available_templates(self, user_id: int) -> list:
-        """Получить список доступных шаблонов для пользователя"""
-        from config import VIDEO_TEMPLATES, TEMPLATE_ACCESS
-        plan = self.get_plan(user_id)
-        access = TEMPLATE_ACCESS.get(plan, TEMPLATE_ACCESS["free"])
-        
-        if access == "all":
-            return list(VIDEO_TEMPLATES.keys())
-        elif access == "all_non_premium":
-            return [k for k, v in VIDEO_TEMPLATES.items() if not v.get("premium", False)]
-        else:
-            return access  # список конкретных шаблонов
-    
-    def can_use_template(self, user_id: int, template: str) -> bool:
-        """Может ли пользователь использовать этот шаблон"""
-        available = self.get_available_templates(user_id)
-        if isinstance(available, list):
-            return template in available or template == "none"
-        return True  # "all"
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.2.0: PAY-AS-YOU-GO (BONUS VIDEOS)
-    # ═════════════════════════════════════════════════════════════
-    
-    def get_bonus_videos(self, user_id: int) -> int:
-        """Получить количество бонусных видео"""
-        return getattr(self.get_user(user_id), 'bonus_videos', 0)
-    
-    def add_bonus_videos(self, user_id: int, count: int):
-        """Добавить бонусные видео (после покупки)"""
-        user = self.get_user(user_id)
-        user.bonus_videos = getattr(user, 'bonus_videos', 0) + count
-        self.save_data()
-    
-    def use_bonus_video(self, user_id: int) -> bool:
-        """Использовать одно бонусное видео. Возвращает True если успешно."""
-        user = self.get_user(user_id)
-        bonus = getattr(user, 'bonus_videos', 0)
-        if bonus > 0:
-            user.bonus_videos = bonus - 1
-            self.save_data()
-            return True
-        return False
-    
-    def has_bonus_videos(self, user_id: int) -> bool:
-        """Есть ли бонусные видео"""
-        return self.get_bonus_videos(user_id) > 0
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.2.0: FIRST PURCHASE DISCOUNT
-    # ═════════════════════════════════════════════════════════════
-    
-    def is_first_purchase(self, user_id: int) -> bool:
-        """Первая покупка? (для скидки -50%)"""
-        return getattr(self.get_user(user_id), 'first_purchase', True)
-    
-    def mark_first_purchase_used(self, user_id: int):
-        """Отметить что первая покупка использована"""
-        user = self.get_user(user_id)
-        user.first_purchase = False
-        self.save_data()
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.2.0: ANTI-ABUSE SYSTEM
-    # ═════════════════════════════════════════════════════════════
-    
-    def record_ip(self, user_id: int, ip: str):
-        """Записать IP адрес пользователя"""
-        user = self.get_user(user_id)
-        if not hasattr(user, 'ip_history'):
-            user.ip_history = []
-        if ip and ip not in user.ip_history:
-            user.ip_history.append(ip)
-            # Храним только последние 10 IP
-            if len(user.ip_history) > 10:
-                user.ip_history = user.ip_history[-10:]
-            self.save_data()
-    
-    def get_ip_count(self, ip: str) -> int:
-        """Сколько Free аккаунтов с этого IP"""
-        count = 0
-        for uid, user in self.users.items():
-            if user.plan == "free":
-                if hasattr(user, 'ip_history') and ip in user.ip_history:
-                    count += 1
-        return count
-    
-    def is_ip_abused(self, ip: str) -> bool:
-        """Превышен ли лимит аккаунтов с одного IP"""
-        from config import ANTI_ABUSE_CONFIG
-        limit = ANTI_ABUSE_CONFIG.get("ip_limit_per_day", 5)
-        return self.get_ip_count(ip) >= limit
-    
-    def record_suspicious_activity(self, user_id: int):
-        """Записать подозрительную активность"""
-        user = self.get_user(user_id)
-        user.suspicious_hits = getattr(user, 'suspicious_hits', 0) + 1
-        self.save_data()
-    
-    def is_suspicious(self, user_id: int) -> bool:
-        """Подозрительный ли пользователь"""
-        user = self.get_user(user_id)
-        return getattr(user, 'suspicious_hits', 0) >= 5
-    
-    def set_device_fingerprint(self, user_id: int, fingerprint: str):
-        """Установить device fingerprint"""
-        user = self.get_user(user_id)
-        user.device_fingerprint = fingerprint
-        self.save_data()
-    
-    def check_fingerprint_abuse(self, fingerprint: str) -> int:
-        """Сколько аккаунтов с этим fingerprint"""
-        count = 0
-        for uid, user in self.users.items():
-            if getattr(user, 'device_fingerprint', '') == fingerprint:
-                count += 1
-        return count
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.2.0: PREMIUM BADGE
-    # ═════════════════════════════════════════════════════════════
-    
-    def has_premium_badge(self, user_id: int) -> bool:
-        """Показывать ли значок Premium"""
-        user = self.get_user(user_id)
-        if self.get_plan(user_id) != "premium":
-            return False
-        return getattr(user, 'show_premium_badge', True)
-    
-    def toggle_premium_badge(self, user_id: int) -> bool:
-        """Переключить отображение значка Premium"""
-        user = self.get_user(user_id)
-        user.show_premium_badge = not getattr(user, 'show_premium_badge', True)
-        self.save_data()
-        return user.show_premium_badge
     
     # ═════════════════════════════════════════════════════════════
     # BAN SYSTEM
