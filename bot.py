@@ -5651,7 +5651,7 @@ async def cb_process(callback: CallbackQuery):
                 if VIREX_SHIELD_AVAILABLE:
                     try:
                         shield = get_virex_shield()
-                        shield.record_processing(user_id, template=task.template, mode=task.mode.value if task.mode else "")
+                        shield.record_processing(user_id, template=template, mode=mode)
                     except Exception as shield_err:
                         logger.warning(f"[SHIELD] Analytics error: {shield_err}")
                 
