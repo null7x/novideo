@@ -1,7 +1,0 @@
-services:
-  - type: worker
-    name: virex-bot
-    runtime: docker
-    envVars:
-      - key: BOT_TOKEN
-        sync: false

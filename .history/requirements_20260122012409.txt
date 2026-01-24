@@ -1,4 +1,0 @@
-aiogram==3.13.1
-aiofiles==24.1.0
-yt-dlp
-psutil
