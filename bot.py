@@ -190,19 +190,44 @@ def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
     current_icon = q_icons.get(quality, "📊")
     
     # Текущий шаблон
-    from config import VIDEO_TEMPLATES
+    from config import VIDEO_TEMPLATES, ANTI_REUPLOAD_LEVELS
     current_template = rate_limiter.get_template(user_id)
     template_name = VIDEO_TEMPLATES.get(current_template, {}).get("name", "🔄 Стандарт")
     
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🎨 Выбрать шаблон ({template_name})", callback_data=f"select_template:{short_id}")],
-        [InlineKeyboardButton(text=f"🎯 {get_button(user_id, 'uniqualize')} {current_icon}", callback_data=f"process:{short_id}")],
-        [
-            InlineKeyboardButton(text="📉", callback_data=f"quick_q:low:{short_id}"),
-            InlineKeyboardButton(text="📊", callback_data=f"quick_q:medium:{short_id}"),
-            InlineKeyboardButton(text="📈", callback_data=f"quick_q:max:{short_id}"),
-        ],
+    # v3.2.0: Anti-Reupload Level
+    anti_level = rate_limiter.get_anti_reupload_level(user_id)
+    level_name = ANTI_REUPLOAD_LEVELS.get(anti_level, {}).get("name", "🟡 Medium")
+    
+    # v3.2.0: Auto-unique mode
+    auto_unique = rate_limiter.get_auto_unique(user_id)
+    auto_icon = "🤖 Авто: ВКЛ" if auto_unique else "🤖 Авто: ВЫКЛ"
+    
+    buttons = [
+        [InlineKeyboardButton(text=f"🎨 Шаблон: {template_name}", callback_data=f"select_template:{short_id}")],
+        [InlineKeyboardButton(text=f"🛡 Защита: {level_name}", callback_data=f"anti_level:{short_id}")],
+        [InlineKeyboardButton(text=auto_icon, callback_data=f"toggle_auto_unique:{short_id}")],
+    ]
+    
+    # Кнопка обработки
+    if auto_unique:
+        buttons.append([InlineKeyboardButton(
+            text=f"⚡ АВТО-УНИКАЛИЗАЦИЯ {current_icon}", 
+            callback_data=f"auto_process:{short_id}"
+        )])
+    else:
+        buttons.append([InlineKeyboardButton(
+            text=f"🎯 {get_button(user_id, 'uniqualize')} {current_icon}", 
+            callback_data=f"process:{short_id}"
+        )])
+    
+    # Быстрый выбор качества
+    buttons.append([
+        InlineKeyboardButton(text="📉", callback_data=f"quick_q:low:{short_id}"),
+        InlineKeyboardButton(text="📊", callback_data=f"quick_q:medium:{short_id}"),
+        InlineKeyboardButton(text="📈", callback_data=f"quick_q:max:{short_id}"),
     ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_result_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
     """ Клавиатура после успешной обработки """
@@ -272,6 +297,9 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text=f"🎨 Шаблон: {template_name}", callback_data="templates"),
+        ],
+        [
+            InlineKeyboardButton(text="📜 История проектов", callback_data="project_history"),
         ],
         [
             InlineKeyboardButton(text=get_button(user_id, "stats"), callback_data="stats"),
@@ -2161,7 +2189,293 @@ async def cb_locked_template(callback: CallbackQuery):
     await callback.answer("🔒 Этот шаблон доступен только для VIP/Premium пользователей", show_alert=True)
 
 
-@dp.message(Command("convert"))
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: ANTI-REUPLOAD LEVEL SELECTION
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dp.callback_query(F.data.startswith("anti_level:"))
+async def cb_anti_level_select(callback: CallbackQuery):
+    """ Выбор уровня Anti-Reupload """
+    user_id = callback.from_user.id
+    short_id = callback.data.split(":")[1]
+    
+    from config import ANTI_REUPLOAD_LEVELS
+    current = rate_limiter.get_anti_reupload_level(user_id)
+    plan = rate_limiter.get_plan(user_id)
+    is_premium = plan in ["vip", "premium"]
+    
+    buttons = []
+    for level_id, level_data in ANTI_REUPLOAD_LEVELS.items():
+        is_locked = level_data.get("premium_only", False) and not is_premium
+        check = "✅ " if current == level_id else ""
+        lock = "🔒 " if is_locked else ""
+        
+        btn_text = f"{check}{lock}{level_data['name']}"
+        time_str = f"~{level_data.get('time_seconds', 30)}с"
+        
+        if is_locked:
+            callback_data = f"locked_level:{short_id}"
+        else:
+            callback_data = f"set_level:{level_id}:{short_id}"
+        
+        buttons.append([
+            InlineKeyboardButton(text=f"{btn_text} ({time_str})", callback_data=callback_data)
+        ])
+    
+    buttons.append([
+        InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_video:{short_id}")
+    ])
+    
+    level_data = ANTI_REUPLOAD_LEVELS.get(current, {})
+    text = (
+        f"🛡 <b>Уровень защиты Anti-Reupload</b>\n\n"
+        f"Текущий: <b>{level_data.get('name', 'Medium')}</b>\n"
+        f"📝 {level_data.get('description', '')}\n\n"
+        f"🟢 <b>Low</b> — быстро, базовая защита\n"
+        f"🟡 <b>Medium</b> — оптимальный баланс\n"
+        f"🔴 <b>Hardcore</b> — максимум (VIP/Premium)\n\n"
+        f"🔒 = только VIP/Premium"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("set_level:"))
+async def cb_set_anti_level(callback: CallbackQuery):
+    """ Установить уровень Anti-Reupload """
+    user_id = callback.from_user.id
+    parts = callback.data.split(":")
+    level_id = parts[1]
+    short_id = parts[2] if len(parts) > 2 else None
+    
+    success = rate_limiter.set_anti_reupload_level(user_id, level_id)
+    if success:
+        from config import ANTI_REUPLOAD_LEVELS
+        level_name = ANTI_REUPLOAD_LEVELS.get(level_id, {}).get("name", level_id)
+        await callback.answer(f"✅ Уровень защиты: {level_name}")
+    else:
+        await callback.answer("🔒 Этот уровень доступен только для VIP/Premium", show_alert=True)
+        return
+    
+    # Возвращаемся к видео клавиатуре
+    if short_id:
+        await callback.message.edit_reply_markup(reply_markup=get_video_keyboard(short_id, user_id))
+
+
+@dp.callback_query(F.data.startswith("locked_level:"))
+async def cb_locked_level(callback: CallbackQuery):
+    """ Уведомление о заблокированном уровне """
+    await callback.answer("🔒 Hardcore доступен только для VIP/Premium пользователей", show_alert=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: AUTO-UNIQUE MODE TOGGLE
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dp.callback_query(F.data.startswith("toggle_auto_unique:"))
+async def cb_toggle_auto_unique(callback: CallbackQuery):
+    """ Переключить режим автоуникализации """
+    user_id = callback.from_user.id
+    short_id = callback.data.split(":")[1]
+    
+    new_state = rate_limiter.toggle_auto_unique(user_id)
+    status = "ВКЛ ✅" if new_state else "ВЫКЛ"
+    
+    await callback.answer(f"🤖 Автоуникализация: {status}")
+    await callback.message.edit_reply_markup(reply_markup=get_video_keyboard(short_id, user_id))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: AUTO-PROCESS (Умная автообработка)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dp.callback_query(F.data.startswith("auto_process:"))
+async def cb_auto_process(callback: CallbackQuery):
+    """ Автоматическая умная обработка """
+    user_id = callback.from_user.id
+    short_id = callback.data.split(":")[1]
+    
+    # Проверка лимитов
+    can_process, reason = rate_limiter.can_process_video(user_id)
+    if not can_process:
+        await callback.answer(reason, show_alert=True)
+        return
+    
+    # Получаем файл
+    input_path = rate_limiter.get_pending_file(user_id, short_id)
+    if not input_path or not os.path.exists(input_path):
+        await callback.answer("❌ Видео не найдено. Отправьте заново.", show_alert=True)
+        return
+    
+    # Устанавливаем статус обработки
+    rate_limiter.set_processing(user_id, True)
+    
+    await callback.message.edit_text("🤖 <b>Автоуникализация запущена...</b>\n\n"
+                                     "⏳ Анализируем видео и подбираем лучшие настройки...")
+    
+    from ffmpeg_utils import smart_auto_process, get_temp_dir, generate_unique_filename, cleanup_file
+    
+    output_path = str(get_temp_dir() / generate_unique_filename())
+    anti_level = rate_limiter.get_anti_reupload_level(user_id)
+    watermark_enabled = rate_limiter.get_watermark_trap(user_id)
+    
+    try:
+        success, error, info = await smart_auto_process(
+            input_path, output_path, user_id,
+            anti_reupload_level=anti_level,
+            enable_watermark_trap=watermark_enabled
+        )
+        
+        if success:
+            # Сохраняем в историю проектов
+            rate_limiter.add_to_project_history(user_id, {
+                "type": "auto_unique",
+                "template": info.get("template"),
+                "anti_level": anti_level,
+                "watermark_hash": info.get("watermark_hash"),
+                "file_id": short_id,
+            })
+            
+            # Увеличиваем счётчик
+            rate_limiter.increment_usage(user_id)
+            
+            # Отправляем результат
+            try:
+                with open(output_path, "rb") as video_file:
+                    template_name = info.get("template", "auto")
+                    processing_time = info.get("processing_time", 0)
+                    
+                    caption = (
+                        f"✅ <b>Автоуникализация завершена!</b>\n\n"
+                        f"🎨 Шаблон: <b>{template_name}</b>\n"
+                        f"🛡 Защита: <b>{anti_level}</b>\n"
+                        f"⏱ Время: <b>{processing_time}с</b>"
+                    )
+                    
+                    if info.get("watermark_hash"):
+                        caption += f"\n🔏 Цифровой отпечаток: <code>{info['watermark_hash'][:8]}...</code>"
+                    
+                    await bot.send_video(
+                        chat_id=user_id,
+                        video=video_file,
+                        caption=caption,
+                        reply_markup=get_result_keyboard(short_id, user_id)
+                    )
+                    await callback.message.delete()
+            except Exception as e:
+                logger.error(f"Send error: {e}")
+                await callback.message.edit_text("❌ Ошибка отправки видео")
+            finally:
+                cleanup_file(output_path)
+        else:
+            await callback.message.edit_text(f"❌ Ошибка обработки: {error}")
+    except Exception as e:
+        logger.error(f"Auto-process error: {e}")
+        await callback.message.edit_text("❌ Ошибка автоуникализации")
+    finally:
+        rate_limiter.set_processing(user_id, False)
+        cleanup_file(input_path)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: PROJECT HISTORY
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dp.callback_query(F.data == "project_history")
+async def cb_project_history(callback: CallbackQuery):
+    """ Показать историю проектов """
+    user_id = callback.from_user.id
+    history = rate_limiter.get_project_history(user_id)
+    
+    if not history:
+        await callback.answer("📭 История пуста", show_alert=True)
+        return
+    
+    buttons = []
+    for project in history[:10]:  # Показываем последние 10
+        pid = project.get("id", 0)
+        ptype = project.get("type", "unknown")
+        timestamp = project.get("timestamp", "")[:10]
+        template = project.get("template", "")
+        
+        type_icons = {
+            "auto_unique": "🤖",
+            "process": "🎯",
+            "download": "📥",
+        }
+        icon = type_icons.get(ptype, "📁")
+        
+        btn_text = f"{icon} #{pid} | {template or ptype} | {timestamp}"
+        buttons.append([InlineKeyboardButton(text=btn_text, callback_data=f"repeat_project:{pid}")])
+    
+    buttons.append([
+        InlineKeyboardButton(text="🗑 Очистить историю", callback_data="clear_history")
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")
+    ])
+    
+    text = (
+        f"📜 <b>История проектов</b>\n\n"
+        f"Последние {len(history)} обработок.\n"
+        f"Нажмите на проект чтобы повторить с теми же настройками."
+    )
+    
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("repeat_project:"))
+async def cb_repeat_project(callback: CallbackQuery):
+    """ Повторить обработку из истории """
+    user_id = callback.from_user.id
+    project_id = int(callback.data.split(":")[1])
+    
+    project = rate_limiter.get_project_by_id(user_id, project_id)
+    if not project:
+        await callback.answer("❌ Проект не найден", show_alert=True)
+        return
+    
+    # Применяем настройки из проекта
+    if project.get("template"):
+        rate_limiter.set_template(user_id, project["template"])
+    if project.get("anti_level"):
+        rate_limiter.set_anti_reupload_level(user_id, project["anti_level"])
+    
+    await callback.answer(
+        f"✅ Настройки применены!\n"
+        f"Шаблон: {project.get('template', 'none')}\n"
+        f"Отправьте видео для обработки.",
+        show_alert=True
+    )
+
+
+@dp.callback_query(F.data == "clear_history")
+async def cb_clear_history(callback: CallbackQuery):
+    """ Очистить историю проектов """
+    user_id = callback.from_user.id
+    rate_limiter.clear_project_history(user_id)
+    await callback.answer("🗑 История очищена", show_alert=True)
+    await callback.message.edit_text(
+        "📜 <b>История проектов</b>\n\n📭 История пуста.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")]
+        ])
+    )
+
+
+@dp.callback_query(F.data.startswith("back_video:"))
+async def cb_back_to_video(callback: CallbackQuery):
+    """ Вернуться к клавиатуре видео """
+    user_id = callback.from_user.id
+    short_id = callback.data.split(":")[1]
+    
+    await callback.message.edit_text(
+        "📹 <b>Видео готово к обработке</b>\n\nВыберите настройки:",
+        reply_markup=get_video_keyboard(short_id, user_id)
+    )
+    await callback.answer()
 async def cmd_convert(message: Message):
     """ /convert — конвертировать видео в другой формат """
     user_id = message.from_user.id

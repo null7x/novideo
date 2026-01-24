@@ -2351,3 +2351,334 @@ async def auto_process_video(
     except Exception as e:
         return False, str(e)
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: AUTO-UNIQUALIZATION (Режим автоуникализации)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _select_best_template_for_video(width: int, height: int, duration: float) -> str:
+    """
+    Автоматически выбирает лучший шаблон на основе характеристик видео.
+    """
+    from config import VIDEO_TEMPLATES
+    import random
+    
+    # Исключаем "none" и premium-only для автовыбора
+    available = [
+        k for k, v in VIDEO_TEMPLATES.items()
+        if k != "none" and not v.get("premium", False)
+    ]
+    
+    # Для вертикального видео (9:16) - предпочитаем TikTok-стили
+    if height > width:
+        preferred = ["viral", "hype", "velocity", "neon", "aesthetic"]
+    # Для горизонтального (16:9) - cinema/youtube стили
+    elif width > height:
+        preferred = ["cinema", "golden", "moody", "summer", "chill"]
+    # Квадратное - универсальные
+    else:
+        preferred = ["bright", "smooth", "vintage", "dreamy"]
+    
+    # Для коротких видео (<15 сек) - динамичные шаблоны
+    if duration < 15:
+        preferred = ["velocity", "glitch", "hype", "viral", "neon"]
+    # Для длинных (>60 сек) - спокойные
+    elif duration > 60:
+        preferred = ["cinema", "chill", "moody", "minimal", "smooth"]
+    
+    # Выбираем из предпочтительных или случайный
+    valid_preferred = [t for t in preferred if t in available]
+    if valid_preferred:
+        return random.choice(valid_preferred)
+    
+    return random.choice(available) if available else "viral"
+
+
+def _get_anti_reupload_settings(level: str) -> dict:
+    """Получить настройки для уровня Anti-Reupload"""
+    from config import ANTI_REUPLOAD_LEVELS, DEFAULT_ANTI_REUPLOAD_LEVEL
+    return ANTI_REUPLOAD_LEVELS.get(level, ANTI_REUPLOAD_LEVELS[DEFAULT_ANTI_REUPLOAD_LEVEL])
+
+
+async def apply_anti_reupload(
+    input_path: str,
+    output_path: str,
+    level: str = "medium"
+) -> Tuple[bool, Optional[str]]:
+    """
+    Применить Anti-Reupload фильтры на основе уровня.
+    Low = быстро, базовая защита
+    Medium = оптимальный баланс
+    Hardcore = максимальная защита (Premium only)
+    """
+    settings = _get_anti_reupload_settings(level)
+    
+    info = await get_video_info(input_path)
+    if not info:
+        return False, "Cannot get video info"
+    
+    width, height, duration, fps = info
+    filters = []
+    audio_filters = []
+    
+    # Базовые фильтры для всех уровней
+    crop_pct = settings.get("crop_percent", 1) / 100
+    crop_w = int(width * (1 - crop_pct * 2))
+    crop_h = int(height * (1 - crop_pct * 2))
+    crop_x = int(width * crop_pct)
+    crop_y = int(height * crop_pct)
+    filters.append(f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}")
+    filters.append(f"scale={width}:{height}:flags=lanczos")
+    
+    # Speed variation
+    speed_var = settings.get("speed_variation", 0.01)
+    speed = 1.0 + random.uniform(-speed_var, speed_var)
+    filters.append(f"setpts={1/speed}*PTS")
+    audio_filters.append(f"atempo={speed}")
+    
+    # Brightness/Saturation
+    br_range = settings.get("brightness_range", 0.02)
+    sat_range = settings.get("saturation_range", 0.02)
+    brightness = random.uniform(-br_range, br_range)
+    saturation = 1.0 + random.uniform(-sat_range, sat_range)
+    contrast = 1.0 + random.uniform(-0.02, 0.02)
+    filters.append(f"eq=brightness={brightness:.4f}:saturation={saturation:.4f}:contrast={contrast:.4f}")
+    
+    # Noise
+    noise = settings.get("noise_amount", 5)
+    filters.append(f"noise=alls={noise}:allf=t+u")
+    
+    # Color shift (Medium+)
+    if settings.get("color_shift"):
+        rs = random.uniform(-0.03, 0.03)
+        gs = random.uniform(-0.02, 0.02)
+        bs = random.uniform(-0.03, 0.03)
+        filters.append(f"colorbalance=rs={rs:.3f}:gs={gs:.3f}:bs={bs:.3f}")
+    
+    # Audio pitch shift (Hardcore)
+    if settings.get("audio_pitch_shift"):
+        pitch = 1.0 + random.uniform(-0.02, 0.02)
+        audio_filters.append(f"asetrate=44100*{pitch:.4f},aresample=44100")
+    
+    # Mirror segments (Hardcore) - зеркалим случайные сегменты
+    if settings.get("mirror_segments") and duration > 5:
+        # Добавляем subtle hflip в случайные моменты через blend
+        pass  # Сложная логика, пропускаем для MVP
+    
+    filters.append("format=yuv420p")
+    
+    video_filter = ",".join(filters)
+    audio_filter = ",".join(audio_filters) if audio_filters else None
+    
+    cmd = [
+        FFMPEG_PATH, "-y",
+        "-i", input_path,
+        "-vf", video_filter,
+    ]
+    
+    if audio_filter:
+        cmd.extend(["-af", audio_filter])
+    
+    cmd.extend([
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-c:a", "aac",
+        "-b:a", "128k",
+    ])
+    
+    # Metadata wipe (Medium+)
+    if settings.get("metadata_wipe"):
+        cmd.extend(["-map_metadata", "-1"])
+    
+    cmd.append(output_path)
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=FFMPEG_TIMEOUT_SECONDS
+        )
+        
+        if process.returncode != 0:
+            return False, stderr.decode()[-200:]
+        
+        return True, None
+    except asyncio.TimeoutError:
+        return False, "Timeout"
+    except Exception as e:
+        return False, str(e)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: WATERMARK TRAP (Невидимый цифровой отпечаток)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _generate_watermark_hash(user_id: int) -> str:
+    """Генерирует уникальный хеш для пользователя"""
+    import hashlib
+    timestamp = int(time.time())
+    data = f"{user_id}:{timestamp}:{random.randint(1000, 9999)}"
+    return hashlib.sha256(data.encode()).hexdigest()[:16]
+
+
+async def embed_watermark_trap(
+    input_path: str,
+    output_path: str,
+    user_id: int,
+    strength: float = 0.02
+) -> Tuple[bool, Optional[str], str]:
+    """
+    Встраивает невидимый цифровой отпечаток в видео.
+    Возвращает: (success, error, watermark_hash)
+    
+    Метод: Добавляем микро-паттерн в случайные кадры, 
+    который незаметен глазу но может быть извлечён.
+    """
+    watermark_hash = _generate_watermark_hash(user_id)
+    
+    # Простой метод: добавляем невидимый текст с очень низкой opacity
+    # В будущем можно использовать LSB стеганографию
+    
+    info = await get_video_info(input_path)
+    if not info:
+        return False, "Cannot get video info", ""
+    
+    width, height, _, _ = info
+    
+    # Невидимый watermark через drawtext с минимальной видимостью
+    # Позиция рандомная, чтобы сложнее было удалить
+    x_pos = random.randint(10, width - 100)
+    y_pos = random.randint(10, height - 50)
+    
+    # Alpha очень низкая (0.01-0.03) - практически невидимо
+    alpha = strength
+    
+    watermark_filter = (
+        f"drawtext=text='{watermark_hash}':"
+        f"fontsize=8:fontcolor=white@{alpha:.2f}:"
+        f"x={x_pos}:y={y_pos}"
+    )
+    
+    cmd = [
+        FFMPEG_PATH, "-y",
+        "-i", input_path,
+        "-vf", watermark_filter,
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "18",  # Высокое качество чтобы сохранить watermark
+        "-c:a", "copy",
+        output_path
+    ]
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=FFMPEG_TIMEOUT_SECONDS
+        )
+        
+        if process.returncode != 0:
+            return False, stderr.decode()[-200:], ""
+        
+        return True, None, watermark_hash
+    except Exception as e:
+        return False, str(e), ""
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: SMART AUTO-PROCESS (Умная автообработка)
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def smart_auto_process(
+    input_path: str,
+    output_path: str,
+    user_id: int,
+    anti_reupload_level: str = "medium",
+    enable_watermark_trap: bool = True,
+) -> Tuple[bool, Optional[str], dict]:
+    """
+    Автоматическая умная обработка видео.
+    Бот сам выбирает лучшие настройки на основе видео.
+    
+    Returns: (success, error, info_dict)
+    """
+    import uuid
+    result_info = {
+        "template": None,
+        "anti_reupload_level": anti_reupload_level,
+        "watermark_hash": None,
+        "processing_time": 0,
+    }
+    
+    start_time = time.time()
+    
+    # 1. Анализируем видео
+    info = await get_video_info(input_path)
+    if not info:
+        return False, "Cannot analyze video", result_info
+    
+    width, height, duration, fps = info
+    
+    # 2. Выбираем лучший шаблон
+    best_template = _select_best_template_for_video(width, height, duration)
+    result_info["template"] = best_template
+    
+    # 3. Создаём временные файлы
+    temp_dir = get_temp_dir()
+    temp1 = str(temp_dir / f"auto1_{uuid.uuid4().hex[:8]}.mp4")
+    temp2 = str(temp_dir / f"auto2_{uuid.uuid4().hex[:8]}.mp4")
+    
+    try:
+        # 4. Применяем Anti-Reupload
+        success, error = await apply_anti_reupload(input_path, temp1, anti_reupload_level)
+        if not success:
+            return False, f"Anti-reupload failed: {error}", result_info
+        
+        # 5. Применяем шаблон
+        success = await process_video(
+            temp1, temp2, "tiktok",
+            quality="max", text_overlay=True, template=best_template
+        )
+        
+        current_output = temp2 if success else temp1
+        
+        # 6. Watermark Trap (если включен)
+        if enable_watermark_trap:
+            from config import WATERMARK_TRAP_SETTINGS
+            success, error, wm_hash = await embed_watermark_trap(
+                current_output, output_path, user_id,
+                WATERMARK_TRAP_SETTINGS.get("strength", 0.02)
+            )
+            if success:
+                result_info["watermark_hash"] = wm_hash
+            else:
+                # Если watermark не удался, просто копируем
+                import shutil
+                shutil.copy(current_output, output_path)
+        else:
+            import shutil
+            shutil.copy(current_output, output_path)
+        
+        result_info["processing_time"] = round(time.time() - start_time, 2)
+        
+        return True, None, result_info
+        
+    except Exception as e:
+        return False, str(e), result_info
+    finally:
+        # Cleanup
+        for f in [temp1, temp2]:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+            except:
+                pass

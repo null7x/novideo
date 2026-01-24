@@ -130,6 +130,14 @@ class UserState:
     is_admin: bool = False
     # v3.1.0: Video template
     video_template: str = "none"
+    # v3.2.0: Anti-Reupload Level
+    anti_reupload_level: str = "medium"
+    # v3.2.0: Auto-uniqualization mode
+    auto_unique_mode: bool = False
+    # v3.2.0: Watermark trap enabled
+    watermark_trap: bool = True
+    # v3.2.0: Project history (последние N обработок)
+    project_history: list = field(default_factory=list)
 
 class RateLimiter:
     def __init__(self):
@@ -678,6 +686,99 @@ class RateLimiter:
         if tpl.get("premium", False):
             return self.get_plan(user_id) in ["vip", "premium"]
         return True
+    
+    # ═════════════════════════════════════════════════════════════
+    # v3.2.0: ANTI-REUPLOAD LEVEL
+    # ═════════════════════════════════════════════════════════════
+    
+    def set_anti_reupload_level(self, user_id: int, level: str):
+        """Установить уровень Anti-Reupload"""
+        from config import ANTI_REUPLOAD_LEVELS
+        if level in ANTI_REUPLOAD_LEVELS:
+            # Проверяем доступ к hardcore
+            if level == "hardcore" and self.get_plan(user_id) not in ["vip", "premium"]:
+                return False
+            user = self.get_user(user_id)
+            user.anti_reupload_level = level
+            self.save_data()
+            return True
+        return False
+    
+    def get_anti_reupload_level(self, user_id: int) -> str:
+        """Получить текущий уровень Anti-Reupload"""
+        return getattr(self.get_user(user_id), 'anti_reupload_level', 'medium')
+    
+    # ═════════════════════════════════════════════════════════════
+    # v3.2.0: AUTO-UNIQUALIZATION MODE
+    # ═════════════════════════════════════════════════════════════
+    
+    def toggle_auto_unique(self, user_id: int) -> bool:
+        """Переключить режим автоуникализации"""
+        user = self.get_user(user_id)
+        user.auto_unique_mode = not getattr(user, 'auto_unique_mode', False)
+        self.save_data()
+        return user.auto_unique_mode
+    
+    def get_auto_unique(self, user_id: int) -> bool:
+        """Получить статус автоуникализации"""
+        return getattr(self.get_user(user_id), 'auto_unique_mode', False)
+    
+    # ═════════════════════════════════════════════════════════════
+    # v3.2.0: WATERMARK TRAP
+    # ═════════════════════════════════════════════════════════════
+    
+    def toggle_watermark_trap(self, user_id: int) -> bool:
+        """Переключить цифровой отпечаток"""
+        user = self.get_user(user_id)
+        user.watermark_trap = not getattr(user, 'watermark_trap', True)
+        self.save_data()
+        return user.watermark_trap
+    
+    def get_watermark_trap(self, user_id: int) -> bool:
+        """Включен ли watermark trap"""
+        return getattr(self.get_user(user_id), 'watermark_trap', True)
+    
+    # ═════════════════════════════════════════════════════════════
+    # v3.2.0: PROJECT HISTORY
+    # ═════════════════════════════════════════════════════════════
+    
+    def add_to_project_history(self, user_id: int, project: dict):
+        """Добавить проект в историю"""
+        from config import MAX_PROJECT_HISTORY
+        user = self.get_user(user_id)
+        if not hasattr(user, 'project_history'):
+            user.project_history = []
+        
+        # Добавляем в начало
+        user.project_history.insert(0, {
+            "id": len(user.project_history) + 1,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            **project
+        })
+        
+        # Ограничиваем размер
+        if len(user.project_history) > MAX_PROJECT_HISTORY:
+            user.project_history = user.project_history[:MAX_PROJECT_HISTORY]
+        
+        self.save_data()
+    
+    def get_project_history(self, user_id: int) -> list:
+        """Получить историю проектов"""
+        return getattr(self.get_user(user_id), 'project_history', [])
+    
+    def get_project_by_id(self, user_id: int, project_id: int) -> Optional[dict]:
+        """Получить проект по ID"""
+        history = self.get_project_history(user_id)
+        for project in history:
+            if project.get("id") == project_id:
+                return project
+        return None
+    
+    def clear_project_history(self, user_id: int):
+        """Очистить историю проектов"""
+        user = self.get_user(user_id)
+        user.project_history = []
+        self.save_data()
     
     # ═════════════════════════════════════════════════════════════
     # TEXT OVERLAY SETTINGS

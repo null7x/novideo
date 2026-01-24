@@ -103,6 +103,76 @@ MAX_BATCH_SIZE = 5  # Максимум видео за раз
 # v3.0.0: Merge videos limit
 MAX_MERGE_VIDEOS = 5  # Максимум видео для склейки
 
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: ANTI-REUPLOAD LEVELS (защита от повторного контента)
+# ══════════════════════════════════════════════════════════════════════════════
+
+ANTI_REUPLOAD_LEVELS = {
+    "low": {
+        "name": "🟢 Low",
+        "description": "Быстрая обработка, базовая защита",
+        "crop_percent": 1,        # 1% кроп
+        "speed_variation": 0.01,  # ±1% скорость
+        "brightness_range": 0.02, # ±2% яркость
+        "saturation_range": 0.02, # ±2% насыщенность
+        "noise_amount": 3,        # минимальный шум
+        "time_seconds": 15,       # ~15 сек обработка
+        "premium_only": False,
+    },
+    "medium": {
+        "name": "🟡 Medium",
+        "description": "Оптимальный баланс скорости и защиты",
+        "crop_percent": 2,
+        "speed_variation": 0.02,
+        "brightness_range": 0.04,
+        "saturation_range": 0.05,
+        "noise_amount": 8,
+        "color_shift": True,      # сдвиг цветов
+        "metadata_wipe": True,    # очистка метаданных
+        "time_seconds": 30,
+        "premium_only": False,
+    },
+    "hardcore": {
+        "name": "🔴 Hardcore",
+        "description": "Максимальная защита, долгая обработка",
+        "crop_percent": 3,
+        "speed_variation": 0.03,
+        "brightness_range": 0.06,
+        "saturation_range": 0.08,
+        "noise_amount": 15,
+        "color_shift": True,
+        "metadata_wipe": True,
+        "frame_interpolation": True,  # интерполяция кадров
+        "audio_pitch_shift": True,    # сдвиг тона аудио
+        "mirror_segments": True,      # зеркалирование сегментов
+        "time_seconds": 60,
+        "premium_only": True,
+    },
+}
+
+DEFAULT_ANTI_REUPLOAD_LEVEL = "medium"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: WATERMARK TRAP (невидимый цифровой отпечаток)
+# ══════════════════════════════════════════════════════════════════════════════
+
+WATERMARK_TRAP_ENABLED = True
+WATERMARK_TRAP_SETTINGS = {
+    "method": "steganography",    # Стеганография в кадрах
+    "embed_user_id": True,        # Встраивать ID пользователя
+    "embed_timestamp": True,      # Встраивать время обработки
+    "embed_hash": True,           # Уникальный хеш
+    "visibility": "invisible",    # invisible / subtle
+    "strength": 0.02,             # Сила встраивания (0.01-0.05)
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v3.2.0: PROJECT HISTORY (история проектов)
+# ══════════════════════════════════════════════════════════════════════════════
+
+MAX_PROJECT_HISTORY = 20  # Максимум проектов в истории
+PROJECT_HISTORY_DAYS = 7  # Хранить историю N дней
+
 # v3.0.0: Speed control options
 SPEED_OPTIONS = {
     "0.5x": 0.5,
