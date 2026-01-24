@@ -214,7 +214,6 @@ class RateLimiter:
                     "scheduled_tasks": getattr(user, 'scheduled_tasks', []),
                     "auto_process_template": getattr(user, 'auto_process_template', ''),
                     "is_admin": getattr(user, 'is_admin', False),
-                    "video_template": getattr(user, 'video_template', 'none'),
                 }
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

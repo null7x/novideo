@@ -182,20 +182,14 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
         ])
 
 def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
-    """ Клавиатура при получении видео — с выбором шаблона """
+    """ Клавиатура при получении видео — с быстрым выбором качества """
     quality = rate_limiter.get_quality(user_id)
     
     # Иконки качества
     q_icons = {Quality.LOW: "📉", Quality.MEDIUM: "📊", Quality.MAX: "📈"}
     current_icon = q_icons.get(quality, "📊")
     
-    # Текущий шаблон
-    from config import VIDEO_TEMPLATES
-    current_template = rate_limiter.get_template(user_id)
-    template_name = VIDEO_TEMPLATES.get(current_template, {}).get("name", "🔄 Стандарт")
-    
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🎨 Выбрать шаблон ({template_name})", callback_data=f"select_template:{short_id}")],
         [InlineKeyboardButton(text=f"🎯 {get_button(user_id, 'uniqualize')} {current_icon}", callback_data=f"process:{short_id}")],
         [
             InlineKeyboardButton(text="📉", callback_data=f"quick_q:low:{short_id}"),
@@ -249,11 +243,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     night_mode = rate_limiter.is_night_mode(user_id)
     night_btn = "🌙 Ночной: ВКЛ" if night_mode else "☀️ Ночной: ВЫКЛ"
     
-    # Текущий шаблон
-    from config import VIDEO_TEMPLATES
-    current_template = rate_limiter.get_template(user_id)
-    template_name = VIDEO_TEMPLATES.get(current_template, {}).get("name", "🔄 Стандарт")
-    
     # Показываем кнопку купить только для free пользователей
     plan = rate_limiter.get_plan(user_id)
     
@@ -269,9 +258,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text=text_btn, callback_data="toggle_text"),
             InlineKeyboardButton(text=night_btn, callback_data="toggle_night"),
-        ],
-        [
-            InlineKeyboardButton(text=f"🎨 Шаблон: {template_name}", callback_data="templates"),
         ],
         [
             InlineKeyboardButton(text=get_button(user_id, "stats"), callback_data="stats"),
@@ -1690,9 +1676,9 @@ async def show_achievements_menu(target, user_id: int):
     
     for ach_id, ach in ACHIEVEMENTS.items():
         if ach_id in unlocked:
-            text += f"✅ <b>{ach['name']}</b> — {ach['description']} (+{ach['points']})\n"
+            text += f"✅ {ach['emoji']} <b>{ach['name']}</b> — {ach['desc']} (+{ach['points']})\n"
         else:
-            text += f"🔒 <b>{ach['name']}</b> — {ach['description']}\n"
+            text += f"🔒 {ach['emoji']} <b>{ach['name']}</b> — {ach['desc']}\n"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="back_to_profile")],
@@ -2029,136 +2015,6 @@ async def cb_template_select(callback: CallbackQuery):
         if tmpl_id in EFFECT_TEMPLATES:
             rate_limiter.set_template(user_id, tmpl_id)
             await callback.answer(f"✅ Шаблон: {EFFECT_TEMPLATES[tmpl_id]['name']}", show_alert=True)
-
-
-@dp.callback_query(F.data.startswith("select_template:"))
-async def cb_select_template_for_video(callback: CallbackQuery):
-    """ Показать все 40 шаблонов для выбора при обработке видео """
-    user_id = callback.from_user.id
-    short_id = callback.data.split(":")[1]
-    
-    from config import VIDEO_TEMPLATES
-    
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    is_premium = plan in ["vip", "premium"]
-    
-    buttons = []
-    row = []
-    
-    for tmpl_id, tmpl in VIDEO_TEMPLATES.items():
-        # Пропускаем премиум шаблоны для free пользователей
-        is_locked = tmpl.get("premium", False) and not is_premium
-        check = "✅" if current == tmpl_id else ""
-        lock = "🔒" if is_locked else ""
-        
-        btn_text = f"{check}{lock}{tmpl['name']}"
-        
-        # Если шаблон заблокирован - показываем уведомление
-        if is_locked:
-            callback_data = f"locked_tmpl:{short_id}"
-        else:
-            callback_data = f"vtmpl:{tmpl_id}:{short_id}"
-        
-        row.append(InlineKeyboardButton(text=btn_text, callback_data=callback_data))
-        
-        # По 2 кнопки в ряду
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    # Кнопка "Без шаблона" и "Обработать"
-    buttons.append([
-        InlineKeyboardButton(text="🔄 Без шаблона", callback_data=f"vtmpl:none:{short_id}")
-    ])
-    buttons.append([
-        InlineKeyboardButton(text=f"🎯 Обработать", callback_data=f"process:{short_id}")
-    ])
-    buttons.append([
-        InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_start")
-    ])
-    
-    template_name = VIDEO_TEMPLATES.get(current, {}).get("name", "Не выбран")
-    text = f"🎨 <b>Выберите шаблон для видео</b>\n\n" \
-           f"Текущий: <b>{template_name}</b>\n\n" \
-           f"🔒 = только VIP/Premium"
-    
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("vtmpl:"))
-async def cb_video_template_select(callback: CallbackQuery):
-    """ Выбрать шаблон и показать обновлённую клавиатуру """
-    user_id = callback.from_user.id
-    parts = callback.data.split(":")
-    tmpl_id = parts[1]
-    short_id = parts[2] if len(parts) > 2 else None
-    
-    from config import VIDEO_TEMPLATES
-    
-    if tmpl_id == "none":
-        rate_limiter.set_template(user_id, "")
-        await callback.answer("✅ Шаблон очищен")
-    elif tmpl_id in VIDEO_TEMPLATES:
-        rate_limiter.set_template(user_id, tmpl_id)
-        await callback.answer(f"✅ {VIDEO_TEMPLATES[tmpl_id]['name']}")
-    
-    # Обновляем клавиатуру выбора шаблонов
-    if short_id:
-        current = rate_limiter.get_template(user_id)
-        plan = rate_limiter.get_plan(user_id)
-        is_premium = plan in ["vip", "premium"]
-        
-        buttons = []
-        row = []
-        
-        for tid, tmpl in VIDEO_TEMPLATES.items():
-            is_locked = tmpl.get("premium", False) and not is_premium
-            check = "✅" if current == tid else ""
-            lock = "🔒" if is_locked else ""
-            
-            btn_text = f"{check}{lock}{tmpl['name']}"
-            
-            if is_locked:
-                callback_data = f"locked_tmpl:{short_id}"
-            else:
-                callback_data = f"vtmpl:{tid}:{short_id}"
-            
-            row.append(InlineKeyboardButton(text=btn_text, callback_data=callback_data))
-            
-            if len(row) == 2:
-                buttons.append(row)
-                row = []
-        
-        if row:
-            buttons.append(row)
-        
-        buttons.append([
-            InlineKeyboardButton(text="🔄 Без шаблона", callback_data=f"vtmpl:none:{short_id}")
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=f"🎯 Обработать", callback_data=f"process:{short_id}")
-        ])
-        buttons.append([
-            InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_start")
-        ])
-        
-        template_name = VIDEO_TEMPLATES.get(current, {}).get("name", "Не выбран")
-        text = f"🎨 <b>Выберите шаблон для видео</b>\n\n" \
-               f"Текущий: <b>{template_name}</b>\n\n" \
-               f"🔒 = только VIP/Premium"
-        
-        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-
-@dp.callback_query(F.data.startswith("locked_tmpl:"))
-async def cb_locked_template(callback: CallbackQuery):
-    """ Уведомление о заблокированном шаблоне """
-    await callback.answer("🔒 Этот шаблон доступен только для VIP/Premium пользователей", show_alert=True)
 
 
 @dp.message(Command("convert"))
@@ -3467,120 +3323,6 @@ async def cb_settings(callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
     await callback.answer()
 
-# ══════════════════════════════════════════════════════════════════════════════
-# v3.1.0: TEMPLATES MENU
-# ══════════════════════════════════════════════════════════════════════════════
-
-@dp.callback_query(F.data == "templates")
-async def cb_templates(callback: CallbackQuery):
-    """Показать меню шаблонов"""
-    user_id = callback.from_user.id
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    from config import VIDEO_TEMPLATES
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    
-    text = "🎨 <b>Шаблоны видео</b>\n\n"
-    text += "Выбери шаблон для обработки видео:\n\n"
-    
-    # Группируем шаблоны
-    buttons = []
-    row = []
-    
-    for tpl_id, tpl in VIDEO_TEMPLATES.items():
-        name = tpl["name"]
-        is_premium = tpl.get("premium", False)
-        is_current = tpl_id == current
-        
-        # Добавляем метку текущего
-        if is_current:
-            name = "✅ " + name
-        
-        # Добавляем замок для премиум шаблонов
-        if is_premium and plan not in ["vip", "premium"]:
-            name = "🔒 " + name
-        
-        row.append(InlineKeyboardButton(text=name, callback_data=f"tpl:{tpl_id}"))
-        
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(text, reply_markup=keyboard)
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("tpl:"))
-async def cb_select_template(callback: CallbackQuery):
-    """Выбрать шаблон"""
-    user_id = callback.from_user.id
-    template_id = callback.data.split(":", 1)[1]
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    from config import VIDEO_TEMPLATES
-    
-    if template_id not in VIDEO_TEMPLATES:
-        await callback.answer("❌ Шаблон не найден")
-        return
-    
-    tpl = VIDEO_TEMPLATES[template_id]
-    
-    # Проверяем доступ к премиум шаблонам
-    if not rate_limiter.can_use_template(user_id, template_id):
-        await callback.answer("🔒 Этот шаблон доступен только для VIP/Premium", show_alert=True)
-        return
-    
-    rate_limiter.set_template(user_id, template_id)
-    await callback.answer(f"✅ Шаблон {tpl['name']} выбран!")
-    
-    # Обновляем меню
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    
-    text = "🎨 <b>Шаблоны видео</b>\n\n"
-    text += f"Текущий шаблон: <b>{tpl['name']}</b>\n"
-    text += f"📝 {tpl['description']}\n\n"
-    
-    buttons = []
-    row = []
-    
-    for tpl_id, t in VIDEO_TEMPLATES.items():
-        name = t["name"]
-        is_premium = t.get("premium", False)
-        is_current = tpl_id == current
-        
-        if is_current:
-            name = "✅ " + name
-        
-        if is_premium and plan not in ["vip", "premium"]:
-            name = "🔒 " + name
-        
-        row.append(InlineKeyboardButton(text=name, callback_data=f"tpl:{tpl_id}"))
-        
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(text, reply_markup=keyboard)
-
 @dp.callback_query(F.data == "stats")
 async def cb_stats(callback: CallbackQuery):
     user_id = callback.from_user.id
@@ -4093,24 +3835,15 @@ async def cb_process(callback: CallbackQuery):
                     caption += f"\n\n🎉 Новый уровень: {new_level}!"
                 if achievements:
                     for ach in achievements:
-                        caption += f"\n🏆 Достижение: {ach['name']}!"
+                        caption += f"\n🏆 Достижение: {ach['emoji']} {ach['name']}!"
                 
-                # Retry для отправки видео (до 3 попыток)
-                for send_attempt in range(3):
-                    try:
-                        await bot.send_video(
-                            chat_id=user_id,
-                            video=video_file,
-                            caption=caption,
-                            reply_markup=get_result_keyboard(short_id, user_id)
-                        )
-                        await callback.message.delete()
-                        break
-                    except asyncio.TimeoutError:
-                        logger.warning(f"[SEND] Timeout, attempt {send_attempt + 1}/3")
-                        if send_attempt == 2:
-                            raise
-                        await asyncio.sleep(3)
+                await bot.send_video(
+                    chat_id=user_id,
+                    video=video_file,
+                    caption=caption,
+                    reply_markup=get_result_keyboard(short_id, user_id)
+                )
+                await callback.message.delete()
             except Exception as e:
                 logger.error(f"Send error: {e}")
                 await callback.message.edit_text(get_text(user_id, "error"))
@@ -4126,8 +3859,7 @@ async def cb_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)
@@ -4857,7 +4589,6 @@ async def cb_url_process(callback: CallbackQuery):
     mode = rate_limiter.get_mode(user_id)
     quality = rate_limiter.get_quality(user_id)
     text_overlay = rate_limiter.get_text_overlay(user_id)
-    template = rate_limiter.get_template(user_id) or "none"  # v3.1.0: шаблон
     
     # Определяем приоритет на основе плана
     plan = rate_limiter.get_plan(user_id)
@@ -4905,24 +4636,15 @@ async def cb_url_process(callback: CallbackQuery):
                     caption += f"\n\n🎉 Новый уровень: {new_level}!"
                 if achievements:
                     for ach in achievements:
-                        caption += f"\n🏆 Достижение: {ach['name']}!"
+                        caption += f"\n🏆 Достижение: {ach['emoji']} {ach['name']}!"
                 
-                # Retry для отправки видео (до 3 попыток)
-                for send_attempt in range(3):
-                    try:
-                        await bot.send_video(
-                            chat_id=user_id,
-                            video=video_file,
-                            caption=caption,
-                            reply_markup=get_result_keyboard(new_short_id, user_id)
-                        )
-                        await status_message.delete()
-                        break
-                    except asyncio.TimeoutError:
-                        logger.warning(f"[SEND] Timeout, attempt {send_attempt + 1}/3")
-                        if send_attempt == 2:
-                            raise
-                        await asyncio.sleep(3)
+                await bot.send_video(
+                    chat_id=user_id,
+                    video=video_file,
+                    caption=caption,
+                    reply_markup=get_result_keyboard(new_short_id, user_id)
+                )
+                await status_message.delete()
             except Exception as e:
                 logger.error(f"Send error: {e}")
                 await status_message.edit_text(get_text(user_id, "error"))
@@ -4941,8 +4663,7 @@ async def cb_url_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)

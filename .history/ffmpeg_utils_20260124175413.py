@@ -887,11 +887,10 @@ def _generate_random_timestamp() -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S.000000Z")
 
 async def process_video(input_path: str, output_path: str, mode: str, 
-                        quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
-                        template: str = "none") -> bool:
+                        quality: str = DEFAULT_QUALITY, text_overlay: bool = True) -> bool:
     """
     ANTI-TIKTOK 2026 Video Processing - поддержка до 8K 120FPS
-    + пресеты качества, опциональный текст и шаблоны
+    + пресеты качества и опциональный текст
     """
     info = await get_video_info(input_path)
     if not info:
@@ -911,20 +910,6 @@ async def process_video(input_path: str, output_path: str, mode: str,
         video_filter, audio_filter, params = _build_tiktok_filter_v2(
             width, height, duration, target_fps, quality, text_overlay
         )
-    
-    # v3.1.0: Применяем шаблон поверх базовых фильтров
-    if template and template != "none":
-        base_filters = video_filter.split(",")
-        modified_filters = _apply_template_filters(base_filters, template, width, height)
-        video_filter = ",".join(modified_filters)
-        
-        # Применяем модификатор скорости из шаблона
-        template_speed = _get_template_speed(template)
-        if template_speed != 1.0:
-            # Добавляем setpts для изменения скорости
-            video_filter = f"setpts={1/template_speed}*PTS," + video_filter
-            # Модифицируем аудио темп
-            audio_filter = f"atempo={template_speed}," + audio_filter
     
     # Рандомный encoder profile для anti-source pattern
     profile = params.get("profile", "main")
@@ -1022,14 +1007,13 @@ def kill_all_ffmpeg():
 class ProcessingTask:
     def __init__(self, user_id: int, input_path: str, mode: str, callback, 
                  quality: str = DEFAULT_QUALITY, text_overlay: bool = True,
-                 priority: int = 0, template: str = "none"):
+                 priority: int = 0):
         self.user_id = user_id
         self.input_path = input_path
         self.mode = mode
         self.callback = callback
         self.quality = quality
         self.text_overlay = text_overlay
-        self.template = template  # v3.1.0: шаблон видео
         self.output_path = str(get_temp_dir() / generate_unique_filename())
         self.priority = priority  # 0=free, 1=vip, 2=premium
         self.cancelled = False
@@ -1058,7 +1042,7 @@ async def worker():
         try:
             success = await process_video(
                 task.input_path, task.output_path, task.mode,
-                task.quality, task.text_overlay, task.template
+                task.quality, task.text_overlay
             )
             
             # Ещё раз проверяем отмену после обработки

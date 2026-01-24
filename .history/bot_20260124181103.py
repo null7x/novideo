@@ -4126,8 +4126,7 @@ async def cb_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)
@@ -4857,7 +4856,6 @@ async def cb_url_process(callback: CallbackQuery):
     mode = rate_limiter.get_mode(user_id)
     quality = rate_limiter.get_quality(user_id)
     text_overlay = rate_limiter.get_text_overlay(user_id)
-    template = rate_limiter.get_template(user_id) or "none"  # v3.1.0: шаблон
     
     # Определяем приоритет на основе плана
     plan = rate_limiter.get_plan(user_id)
@@ -4941,8 +4939,7 @@ async def cb_url_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)

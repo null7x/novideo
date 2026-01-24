@@ -17,7 +17,6 @@ from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
-import aiohttp
 
 from config import (
     BOT_TOKEN, Mode, DEFAULT_MODE,
@@ -99,7 +98,6 @@ def _get_period_name(days: int) -> str:
 
 
 # Увеличенный таймаут для отправки больших файлов (5 минут)
-# AiohttpSession принимает timeout в секундах (int)
 session = AiohttpSession(timeout=300)
 
 bot = Bot(
@@ -112,29 +110,20 @@ dp = Dispatcher()
 pending_files: dict = {}
 short_id_map: dict = {}  # short_id -> {file_id, created_at}
 pending_referrers: dict = {}  # user_id -> referrer_id (для новых пользователей)
-pending_urls: dict = {}  # short_id -> {user_id, url, created_at}
 
 def generate_short_id() -> str:
     return uuid.uuid4().hex[:8]
 
 def cleanup_short_id_map():
-    """ Очистка устаревших short_id и pending_urls """
+    """ Очистка устаревших short_id """
     now = time_module.time()
     expired = [k for k, v in short_id_map.items() 
                if now - v.get("created_at", 0) > SHORT_ID_TTL_SECONDS]
     for k in expired:
         short_id_map.pop(k, None)
         pending_files.pop(k, None)
-    
-    # Очистка pending_urls (устаревшие ссылки)
-    expired_urls = [k for k, v in pending_urls.items() 
-                    if now - v.get("created_at", 0) > SHORT_ID_TTL_SECONDS]
-    for k in expired_urls:
-        pending_urls.pop(k, None)
-    
-    total_expired = len(expired) + len(expired_urls)
-    if total_expired:
-        logger.info(f"[CLEANUP] Removed {len(expired)} short_ids, {len(expired_urls)} pending_urls")
+    if expired:
+        logger.info(f"[CLEANUP] Removed {len(expired)} expired short_ids")
 
 def store_short_id(short_id: str, file_id: str):
     """ Сохранить short_id с timestamp """
@@ -144,14 +133,10 @@ def store_short_id(short_id: str, file_id: str):
     }
 
 def is_admin(user) -> bool:
-    """ Проверка админа по ID, username или динамическому флагу """
+    """ Проверка админа по ID или username """
     if user.id in ADMIN_IDS:
         return True
     if user.username and user.username.lower() in [u.lower() for u in ADMIN_USERNAMES]:
-        return True
-    # Проверяем динамический флаг админа
-    user_data = rate_limiter.get_user(user.id)
-    if getattr(user_data, 'is_admin', False):
         return True
     return False
 
@@ -182,20 +167,14 @@ def get_start_keyboard(mode: str, user_id: int) -> InlineKeyboardMarkup:
         ])
 
 def get_video_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
-    """ Клавиатура при получении видео — с выбором шаблона """
+    """ Клавиатура при получении видео — с быстрым выбором качества """
     quality = rate_limiter.get_quality(user_id)
     
     # Иконки качества
     q_icons = {Quality.LOW: "📉", Quality.MEDIUM: "📊", Quality.MAX: "📈"}
     current_icon = q_icons.get(quality, "📊")
     
-    # Текущий шаблон
-    from config import VIDEO_TEMPLATES
-    current_template = rate_limiter.get_template(user_id)
-    template_name = VIDEO_TEMPLATES.get(current_template, {}).get("name", "🔄 Стандарт")
-    
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🎨 Выбрать шаблон ({template_name})", callback_data=f"select_template:{short_id}")],
         [InlineKeyboardButton(text=f"🎯 {get_button(user_id, 'uniqualize')} {current_icon}", callback_data=f"process:{short_id}")],
         [
             InlineKeyboardButton(text="📉", callback_data=f"quick_q:low:{short_id}"),
@@ -249,11 +228,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     night_mode = rate_limiter.is_night_mode(user_id)
     night_btn = "🌙 Ночной: ВКЛ" if night_mode else "☀️ Ночной: ВЫКЛ"
     
-    # Текущий шаблон
-    from config import VIDEO_TEMPLATES
-    current_template = rate_limiter.get_template(user_id)
-    template_name = VIDEO_TEMPLATES.get(current_template, {}).get("name", "🔄 Стандарт")
-    
     # Показываем кнопку купить только для free пользователей
     plan = rate_limiter.get_plan(user_id)
     
@@ -269,9 +243,6 @@ def get_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text=text_btn, callback_data="toggle_text"),
             InlineKeyboardButton(text=night_btn, callback_data="toggle_night"),
-        ],
-        [
-            InlineKeyboardButton(text=f"🎨 Шаблон: {template_name}", callback_data="templates"),
         ],
         [
             InlineKeyboardButton(text=get_button(user_id, "stats"), callback_data="stats"),
@@ -632,101 +603,6 @@ async def cmd_removeplan(message: Message):
     
     rate_limiter.set_plan(target_id, "free")
     await message.answer(TEXTS.get("plan_removed", "✅ План сброшен").format(user_id=target_id, username=username))
-
-@dp.message(Command("addadmin"))
-async def cmd_addadmin(message: Message):
-    """ /addadmin @username — добавить администратора (автоматически даёт Premium) """
-    if not is_admin(message.from_user):
-        await message.answer(TEXTS.get("not_admin", "⛔ Нет доступа"))
-        return
-    
-    args = message.text.split()
-    if len(args) < 2:
-        await message.answer(
-            "🔧 <b>Добавить администратора</b>\n\n"
-            "<b>Использование:</b>\n"
-            "<code>/addadmin @username</code>\n\n"
-            "<b>Примечание:</b>\n"
-            "При добавлении админа автоматически выдаётся Premium навсегда (99 лет)"
-        )
-        return
-    
-    target = args[1]
-    
-    if target.startswith("@"):
-        target_id = rate_limiter.find_user_by_username(target)
-        if not target_id:
-            await message.answer(f"⚠️ Пользователь {target} не найден. Он должен хотя бы раз написать боту.")
-            return
-        username = target.lstrip("@")
-    else:
-        try:
-            target_id = int(target)
-            username = rate_limiter.get_username(target_id) or str(target_id)
-        except ValueError:
-            await message.answer(TEXTS.get("invalid_user_id", "⚠️ Неверный ID"))
-            return
-    
-    # Ставим флаг админа
-    user_data = rate_limiter.get_user(target_id)
-    user_data.is_admin = True
-    rate_limiter.save_data()
-    
-    # Автоматически даём Premium на 99 лет (36135 дней)
-    rate_limiter.set_plan_with_expiry(target_id, "premium", 36135)
-    
-    await message.answer(
-        f"🔧 <b>Администратор добавлен!</b>\n\n"
-        f"👤 @{username} (ID: {target_id})\n"
-        f"👑 Premium: навсегда (99 лет)\n"
-        f"✅ Права администратора активны"
-    )
-
-@dp.message(Command("removeadmin"))
-async def cmd_removeadmin(message: Message):
-    """ /removeadmin @username — убрать администратора """
-    if not is_admin(message.from_user):
-        await message.answer(TEXTS.get("not_admin", "⛔ Нет доступа"))
-        return
-    
-    args = message.text.split()
-    if len(args) < 2:
-        await message.answer(
-            "🔧 <b>Убрать администратора</b>\n\n"
-            "<b>Использование:</b>\n"
-            "<code>/removeadmin @username</code>"
-        )
-        return
-    
-    target = args[1]
-    
-    if target.startswith("@"):
-        target_id = rate_limiter.find_user_by_username(target)
-        if not target_id:
-            await message.answer(f"⚠️ Пользователь {target} не найден.")
-            return
-        username = target.lstrip("@")
-    else:
-        try:
-            target_id = int(target)
-            username = rate_limiter.get_username(target_id) or str(target_id)
-        except ValueError:
-            await message.answer(TEXTS.get("invalid_user_id", "⚠️ Неверный ID"))
-            return
-    
-    # Убираем флаг админа
-    user_data = rate_limiter.get_user(target_id)
-    user_data.is_admin = False
-    
-    # Убираем Premium тоже
-    rate_limiter.set_plan(target_id, "free")
-    
-    await message.answer(
-        f"🔧 <b>Администратор удалён</b>\n\n"
-        f"👤 @{username} (ID: {target_id})\n"
-        f"⚠️ Права администратора отозваны\n"
-        f"📉 Premium убран (план: Free)"
-    )
 
 @dp.message(Command("userinfo"))
 async def cmd_userinfo(message: Message):
@@ -1690,9 +1566,9 @@ async def show_achievements_menu(target, user_id: int):
     
     for ach_id, ach in ACHIEVEMENTS.items():
         if ach_id in unlocked:
-            text += f"✅ <b>{ach['name']}</b> — {ach['description']} (+{ach['points']})\n"
+            text += f"✅ {ach['emoji']} <b>{ach['name']}</b> — {ach['desc']} (+{ach['points']})\n"
         else:
-            text += f"🔒 <b>{ach['name']}</b> — {ach['description']}\n"
+            text += f"🔒 {ach['emoji']} <b>{ach['name']}</b> — {ach['desc']}\n"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_button(user_id, "back"), callback_data="back_to_profile")],
@@ -2029,136 +1905,6 @@ async def cb_template_select(callback: CallbackQuery):
         if tmpl_id in EFFECT_TEMPLATES:
             rate_limiter.set_template(user_id, tmpl_id)
             await callback.answer(f"✅ Шаблон: {EFFECT_TEMPLATES[tmpl_id]['name']}", show_alert=True)
-
-
-@dp.callback_query(F.data.startswith("select_template:"))
-async def cb_select_template_for_video(callback: CallbackQuery):
-    """ Показать все 40 шаблонов для выбора при обработке видео """
-    user_id = callback.from_user.id
-    short_id = callback.data.split(":")[1]
-    
-    from config import VIDEO_TEMPLATES
-    
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    is_premium = plan in ["vip", "premium"]
-    
-    buttons = []
-    row = []
-    
-    for tmpl_id, tmpl in VIDEO_TEMPLATES.items():
-        # Пропускаем премиум шаблоны для free пользователей
-        is_locked = tmpl.get("premium", False) and not is_premium
-        check = "✅" if current == tmpl_id else ""
-        lock = "🔒" if is_locked else ""
-        
-        btn_text = f"{check}{lock}{tmpl['name']}"
-        
-        # Если шаблон заблокирован - показываем уведомление
-        if is_locked:
-            callback_data = f"locked_tmpl:{short_id}"
-        else:
-            callback_data = f"vtmpl:{tmpl_id}:{short_id}"
-        
-        row.append(InlineKeyboardButton(text=btn_text, callback_data=callback_data))
-        
-        # По 2 кнопки в ряду
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    # Кнопка "Без шаблона" и "Обработать"
-    buttons.append([
-        InlineKeyboardButton(text="🔄 Без шаблона", callback_data=f"vtmpl:none:{short_id}")
-    ])
-    buttons.append([
-        InlineKeyboardButton(text=f"🎯 Обработать", callback_data=f"process:{short_id}")
-    ])
-    buttons.append([
-        InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_start")
-    ])
-    
-    template_name = VIDEO_TEMPLATES.get(current, {}).get("name", "Не выбран")
-    text = f"🎨 <b>Выберите шаблон для видео</b>\n\n" \
-           f"Текущий: <b>{template_name}</b>\n\n" \
-           f"🔒 = только VIP/Premium"
-    
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("vtmpl:"))
-async def cb_video_template_select(callback: CallbackQuery):
-    """ Выбрать шаблон и показать обновлённую клавиатуру """
-    user_id = callback.from_user.id
-    parts = callback.data.split(":")
-    tmpl_id = parts[1]
-    short_id = parts[2] if len(parts) > 2 else None
-    
-    from config import VIDEO_TEMPLATES
-    
-    if tmpl_id == "none":
-        rate_limiter.set_template(user_id, "")
-        await callback.answer("✅ Шаблон очищен")
-    elif tmpl_id in VIDEO_TEMPLATES:
-        rate_limiter.set_template(user_id, tmpl_id)
-        await callback.answer(f"✅ {VIDEO_TEMPLATES[tmpl_id]['name']}")
-    
-    # Обновляем клавиатуру выбора шаблонов
-    if short_id:
-        current = rate_limiter.get_template(user_id)
-        plan = rate_limiter.get_plan(user_id)
-        is_premium = plan in ["vip", "premium"]
-        
-        buttons = []
-        row = []
-        
-        for tid, tmpl in VIDEO_TEMPLATES.items():
-            is_locked = tmpl.get("premium", False) and not is_premium
-            check = "✅" if current == tid else ""
-            lock = "🔒" if is_locked else ""
-            
-            btn_text = f"{check}{lock}{tmpl['name']}"
-            
-            if is_locked:
-                callback_data = f"locked_tmpl:{short_id}"
-            else:
-                callback_data = f"vtmpl:{tid}:{short_id}"
-            
-            row.append(InlineKeyboardButton(text=btn_text, callback_data=callback_data))
-            
-            if len(row) == 2:
-                buttons.append(row)
-                row = []
-        
-        if row:
-            buttons.append(row)
-        
-        buttons.append([
-            InlineKeyboardButton(text="🔄 Без шаблона", callback_data=f"vtmpl:none:{short_id}")
-        ])
-        buttons.append([
-            InlineKeyboardButton(text=f"🎯 Обработать", callback_data=f"process:{short_id}")
-        ])
-        buttons.append([
-            InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_start")
-        ])
-        
-        template_name = VIDEO_TEMPLATES.get(current, {}).get("name", "Не выбран")
-        text = f"🎨 <b>Выберите шаблон для видео</b>\n\n" \
-               f"Текущий: <b>{template_name}</b>\n\n" \
-               f"🔒 = только VIP/Premium"
-        
-        await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-
-
-@dp.callback_query(F.data.startswith("locked_tmpl:"))
-async def cb_locked_template(callback: CallbackQuery):
-    """ Уведомление о заблокированном шаблоне """
-    await callback.answer("🔒 Этот шаблон доступен только для VIP/Premium пользователей", show_alert=True)
 
 
 @dp.message(Command("convert"))
@@ -2795,9 +2541,6 @@ async def cb_admin_commands(callback: CallbackQuery):
         "• <code>/userinfo @user</code> — инфо\n"
         "• <code>/ban @user [причина]</code>\n"
         "• <code>/unban @user</code>\n\n"
-        "<b>🔧 Администраторы:</b>\n"
-        "• <code>/addadmin @user</code> — добавить (+ Premium навсегда)\n"
-        "• <code>/removeadmin @user</code> — убрать (+ сброс Premium)\n\n"
         "<b>🎟 Промо-коды:</b>\n"
         "• <code>/createpromo КОД тип знач [макс]</code>\n"
         "• <code>/deletepromo КОД</code>\n"
@@ -3144,19 +2887,12 @@ async def cb_admin_health(callback: CallbackQuery):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     
-    try:
-        import psutil
-        process = psutil.Process()
-        memory_mb = process.memory_info().rss / (1024 * 1024)
-        uptime_seconds = time_module.time() - process.create_time()
-        hours, remainder = divmod(int(uptime_seconds), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        uptime_str = f"{hours}h {minutes}m {seconds}s"
-    except ImportError:
-        memory_mb = 0
-        uptime_str = "N/A (psutil not installed)"
-    
+    import psutil
     import sys
+    
+    # Память
+    process = psutil.Process()
+    memory_mb = process.memory_info().rss / (1024 * 1024)
     
     # Очередь
     queue_size = get_queue_size()
@@ -3165,10 +2901,14 @@ async def cb_admin_health(callback: CallbackQuery):
     from ffmpeg_utils import get_temp_dir_size
     temp_size_mb, temp_files = get_temp_dir_size()
     
+    # Uptime
+    import datetime
+    uptime = datetime.datetime.now() - datetime.datetime.fromtimestamp(process.create_time())
+    
     text = (
         f"🏥 <b>Health Check</b>\n\n"
         f"✅ Бот работает\n"
-        f"⏱ Uptime: {uptime_str}\n"
+        f"⏱ Uptime: {str(uptime).split('.')[0]}\n"
         f"🐍 Python: {sys.version.split()[0]}\n\n"
         f"<b>Ресурсы:</b>\n"
         f"💾 Память: {memory_mb:.1f} MB\n"
@@ -3466,120 +3206,6 @@ async def cb_settings(callback: CallbackQuery):
     
     await callback.message.edit_text(text, reply_markup=get_settings_keyboard(user_id))
     await callback.answer()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# v3.1.0: TEMPLATES MENU
-# ══════════════════════════════════════════════════════════════════════════════
-
-@dp.callback_query(F.data == "templates")
-async def cb_templates(callback: CallbackQuery):
-    """Показать меню шаблонов"""
-    user_id = callback.from_user.id
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    from config import VIDEO_TEMPLATES
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    
-    text = "🎨 <b>Шаблоны видео</b>\n\n"
-    text += "Выбери шаблон для обработки видео:\n\n"
-    
-    # Группируем шаблоны
-    buttons = []
-    row = []
-    
-    for tpl_id, tpl in VIDEO_TEMPLATES.items():
-        name = tpl["name"]
-        is_premium = tpl.get("premium", False)
-        is_current = tpl_id == current
-        
-        # Добавляем метку текущего
-        if is_current:
-            name = "✅ " + name
-        
-        # Добавляем замок для премиум шаблонов
-        if is_premium and plan not in ["vip", "premium"]:
-            name = "🔒 " + name
-        
-        row.append(InlineKeyboardButton(text=name, callback_data=f"tpl:{tpl_id}"))
-        
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(text, reply_markup=keyboard)
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("tpl:"))
-async def cb_select_template(callback: CallbackQuery):
-    """Выбрать шаблон"""
-    user_id = callback.from_user.id
-    template_id = callback.data.split(":", 1)[1]
-    
-    if rate_limiter.check_button_spam(user_id):
-        await callback.answer()
-        return
-    
-    from config import VIDEO_TEMPLATES
-    
-    if template_id not in VIDEO_TEMPLATES:
-        await callback.answer("❌ Шаблон не найден")
-        return
-    
-    tpl = VIDEO_TEMPLATES[template_id]
-    
-    # Проверяем доступ к премиум шаблонам
-    if not rate_limiter.can_use_template(user_id, template_id):
-        await callback.answer("🔒 Этот шаблон доступен только для VIP/Premium", show_alert=True)
-        return
-    
-    rate_limiter.set_template(user_id, template_id)
-    await callback.answer(f"✅ Шаблон {tpl['name']} выбран!")
-    
-    # Обновляем меню
-    current = rate_limiter.get_template(user_id)
-    plan = rate_limiter.get_plan(user_id)
-    
-    text = "🎨 <b>Шаблоны видео</b>\n\n"
-    text += f"Текущий шаблон: <b>{tpl['name']}</b>\n"
-    text += f"📝 {tpl['description']}\n\n"
-    
-    buttons = []
-    row = []
-    
-    for tpl_id, t in VIDEO_TEMPLATES.items():
-        name = t["name"]
-        is_premium = t.get("premium", False)
-        is_current = tpl_id == current
-        
-        if is_current:
-            name = "✅ " + name
-        
-        if is_premium and plan not in ["vip", "premium"]:
-            name = "🔒 " + name
-        
-        row.append(InlineKeyboardButton(text=name, callback_data=f"tpl:{tpl_id}"))
-        
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="settings")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(text, reply_markup=keyboard)
 
 @dp.callback_query(F.data == "stats")
 async def cb_stats(callback: CallbackQuery):
@@ -4035,25 +3661,11 @@ async def cb_process(callback: CallbackQuery):
     await callback.answer()
     
     try:
-        logger.info(f"[PROCESS] Getting file {file_id} for user {user_id}")
         tg_file = await bot.get_file(file_id)
-        logger.info(f"[PROCESS] File path: {tg_file.file_path}")
         input_path = str(get_temp_dir() / generate_unique_filename())
-        logger.info(f"[PROCESS] Downloading to: {input_path}")
-        
-        # Retry logic для скачивания (до 3 попыток)
-        for attempt in range(3):
-            try:
-                await bot.download_file(tg_file.file_path, input_path)
-                logger.info(f"[PROCESS] Download complete (attempt {attempt + 1})")
-                break
-            except asyncio.TimeoutError:
-                logger.warning(f"[PROCESS] Download timeout, attempt {attempt + 1}/3")
-                if attempt == 2:
-                    raise
-                await asyncio.sleep(2)
+        await bot.download_file(tg_file.file_path, input_path)
     except Exception as e:
-        logger.error(f"Download error: {type(e).__name__}: {e}")
+        logger.error(f"Download error: {e}")
         rate_limiter.set_processing(user_id, False)
         await callback.message.edit_text(get_text(user_id, "error"))
         return
@@ -4093,24 +3705,15 @@ async def cb_process(callback: CallbackQuery):
                     caption += f"\n\n🎉 Новый уровень: {new_level}!"
                 if achievements:
                     for ach in achievements:
-                        caption += f"\n🏆 Достижение: {ach['name']}!"
+                        caption += f"\n🏆 Достижение: {ach['emoji']} {ach['name']}!"
                 
-                # Retry для отправки видео (до 3 попыток)
-                for send_attempt in range(3):
-                    try:
-                        await bot.send_video(
-                            chat_id=user_id,
-                            video=video_file,
-                            caption=caption,
-                            reply_markup=get_result_keyboard(short_id, user_id)
-                        )
-                        await callback.message.delete()
-                        break
-                    except asyncio.TimeoutError:
-                        logger.warning(f"[SEND] Timeout, attempt {send_attempt + 1}/3")
-                        if send_attempt == 2:
-                            raise
-                        await asyncio.sleep(3)
+                await bot.send_video(
+                    chat_id=user_id,
+                    video=video_file,
+                    caption=caption,
+                    reply_markup=get_result_keyboard(short_id, user_id)
+                )
+                await callback.message.delete()
             except Exception as e:
                 logger.error(f"Send error: {e}")
                 await callback.message.edit_text(get_text(user_id, "error"))
@@ -4126,8 +3729,7 @@ async def cb_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)
@@ -4173,7 +3775,7 @@ CACHE_MAX_SIZE = 50
 CACHE_TTL_SECONDS = 3600  # 1 час
 
 async def download_youtube_video(url: str, output_path: str) -> bool:
-    """Скачать YouTube видео через Invidious API или публичные прокси"""
+    """Скачать YouTube видео через публичные API"""
     try:
         import aiohttp
         import re
@@ -4204,78 +3806,74 @@ async def download_youtube_video(url: str, output_path: str) -> bool:
         async with aiohttp.ClientSession() as session:
             video_url = None
             
-            # 1. Пробуем Invidious инстансы (открытый YouTube прокси)
-            invidious_instances = [
-                "https://vid.puffyan.us",
-                "https://invidious.snopyta.org",
-                "https://yewtu.be",
-                "https://invidious.kavin.rocks",
-                "https://inv.riverside.rocks",
-                "https://invidious.namazso.eu",
-            ]
+            # 1. Пробуем y2mate API
+            try:
+                y2mate_analyze = "https://www.y2mate.com/mates/analyzeV2/ajax"
+                y2mate_data = {
+                    "k_query": f"https://www.youtube.com/watch?v={video_id}",
+                    "k_page": "home",
+                    "hl": "en",
+                    "q_auto": 0
+                }
+                async with session.post(y2mate_analyze, data=y2mate_data, headers=headers, timeout=15) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data.get('status') == 'ok' and 'links' in data:
+                            # Получаем mp4 ссылку
+                            mp4_links = data.get('links', {}).get('mp4', {})
+                            for quality in ['720', '480', '360', '240']:
+                                if quality in mp4_links:
+                                    # Нужно сделать второй запрос для получения ссылки
+                                    convert_data = {
+                                        "vid": video_id,
+                                        "k": mp4_links[quality].get('k', ''),
+                                    }
+                                    async with session.post("https://www.y2mate.com/mates/convertV2/index", data=convert_data, headers=headers, timeout=15) as conv_resp:
+                                        if conv_resp.status == 200:
+                                            conv_data = await conv_resp.json()
+                                            if conv_data.get('status') == 'ok':
+                                                video_url = conv_data.get('dlink')
+                                                logger.info(f"[YouTube] y2mate API success")
+                                                break
+                                    break
+            except Exception as e:
+                logger.warning(f"[YouTube] y2mate API failed: {e}")
             
-            for instance in invidious_instances:
+            # 2. Пробуем savefrom API
+            if not video_url:
                 try:
-                    api_url = f"{instance}/api/v1/videos/{video_id}"
-                    async with session.get(api_url, headers=headers, timeout=10) as resp:
+                    sf_url = f"https://api.savefrom.biz/api/convert?url=https://www.youtube.com/watch?v={video_id}"
+                    async with session.get(sf_url, headers=headers, timeout=15) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            # Ищем MP4 формат
-                            formats = data.get('formatStreams', []) + data.get('adaptiveFormats', [])
-                            for fmt in formats:
-                                if fmt.get('type', '').startswith('video/mp4') and fmt.get('url'):
-                                    # Предпочитаем 720p или ниже
-                                    quality = fmt.get('qualityLabel', '')
-                                    if '720' in quality or '480' in quality or '360' in quality:
-                                        video_url = fmt['url']
-                                        logger.info(f"[YouTube] Invidious ({instance}) success: {quality}")
-                                        break
-                            if video_url:
-                                break
-                            # Если не нашли нужное качество, берём первый mp4
-                            for fmt in formats:
-                                if fmt.get('type', '').startswith('video/mp4') and fmt.get('url'):
-                                    video_url = fmt['url']
-                                    logger.info(f"[YouTube] Invidious ({instance}) success")
-                                    break
-                            if video_url:
-                                break
+                            if 'url' in data:
+                                video_url = data['url']
+                                logger.info(f"[YouTube] savefrom API success")
                 except Exception as e:
-                    logger.debug(f"[YouTube] Invidious {instance} failed: {e}")
-                    continue
+                    logger.warning(f"[YouTube] savefrom API failed: {e}")
             
-            # 2. Пробуем Piped API (другой открытый прокси)
+            # 3. Пробуем 9convert API
             if not video_url:
-                piped_instances = [
-                    "https://pipedapi.kavin.rocks",
-                    "https://api.piped.yt",
-                    "https://pipedapi.tokhmi.xyz",
-                ]
-                for instance in piped_instances:
-                    try:
-                        api_url = f"{instance}/streams/{video_id}"
-                        async with session.get(api_url, headers=headers, timeout=10) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                # Пробуем videoStreams
-                                streams = data.get('videoStreams', [])
-                                for stream in streams:
-                                    if stream.get('format') == 'MPEG_4' and stream.get('videoOnly') == False:
-                                        video_url = stream.get('url')
-                                        logger.info(f"[YouTube] Piped ({instance}) success")
-                                        break
-                                if video_url:
-                                    break
-                    except Exception as e:
-                        logger.debug(f"[YouTube] Piped {instance} failed: {e}")
-                        continue
+                try:
+                    nine_url = "https://9convert.com/api/ajaxSearch/index"
+                    nine_data = {"query": f"https://www.youtube.com/watch?v={video_id}", "vt": "home"}
+                    async with session.post(nine_url, data=nine_data, headers=headers, timeout=15) as resp:
+                        if resp.status == 200:
+                            text = await resp.text()
+                            # Ищем ссылку в ответе
+                            match = re.search(r'href="(https://[^"]+\.mp4[^"]*)"', text)
+                            if match:
+                                video_url = match.group(1)
+                                logger.info(f"[YouTube] 9convert API success")
+                except Exception as e:
+                    logger.warning(f"[YouTube] 9convert API failed: {e}")
             
             if not video_url:
                 logger.warning("[YouTube] All APIs failed, falling back to yt-dlp")
                 return False
             
             # Скачиваем видео
-            logger.info(f"[YouTube] Downloading...")
+            logger.info(f"[YouTube] Downloading from API...")
             async with session.get(video_url, headers=headers, timeout=180, allow_redirects=True) as video_resp:
                 if video_resp.status != 200:
                     logger.error(f"[YouTube] Download failed: HTTP {video_resp.status}")
@@ -4314,12 +3912,9 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
                 return True
             # Fallback на yt-dlp если API не сработали
         
-        # Специальная обработка Kuaishou - с fallback на yt-dlp
+        # Специальная обработка Kuaishou
         if any(domain in url.lower() for domain in ['kuaishou.com', 'gifshow.com']):
-            result = await download_kuaishou_video(url, output_path)
-            if result:
-                return True
-            # Fallback на yt-dlp
+            return await download_kuaishou_video(url, output_path)
         
         # Специальная обработка Instagram
         if 'instagram.com' in url.lower():
@@ -4356,11 +3951,12 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
             },
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['tv_embedded', 'android'],
+                    'player_client': ['ios', 'android', 'web'],
+                    'player_skip': ['webpage', 'configs'],
                 }
             },
-            # Используем cookies из браузера если доступны
-            'cookiesfrombrowser': ('chrome',),
+            # Попытка обойти блокировку без cookies
+            'cookiefile': None,
             'age_limit': None,
             'geo_bypass': True,
             'geo_bypass_country': 'US',
@@ -4371,31 +3967,14 @@ async def download_video_from_url(url: str, output_path: str) -> bool:
         if is_youtube:
             ydl_opts['format'] = 'best[ext=mp4][height<=1080]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best'
             ydl_opts['merge_output_format'] = 'mp4'
-            # tv_embedded работает лучше для обхода блокировки
-            ydl_opts['extractor_args']['youtube']['player_client'] = ['tv_embedded']
+            # Используем iOS клиент для обхода проверки бота
+            ydl_opts['extractor_args']['youtube']['player_client'] = ['ios', 'mweb']
         
         loop = asyncio.get_event_loop()
         
         def download():
-            try:
-                # Сначала пробуем без cookies
-                ydl_opts_simple = ydl_opts.copy()
-                ydl_opts_simple.pop('cookiesfrombrowser', None)
-                with yt_dlp.YoutubeDL(ydl_opts_simple) as ydl:
-                    ydl.download([url])
-            except Exception as e:
-                logger.warning(f"[YT-DLP] First attempt failed: {e}")
-                # Пробуем с другими настройками
-                ydl_opts_simple['extractor_args'] = {
-                    'youtube': {'player_client': ['android']},
-                }
-                ydl_opts_simple['http_headers']['User-Agent'] = 'com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip'
-                try:
-                    with yt_dlp.YoutubeDL(ydl_opts_simple) as ydl:
-                        ydl.download([url])
-                except Exception as e2:
-                    logger.error(f"[YT-DLP] Second attempt failed: {e2}")
-                    raise e2
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
         
         await loop.run_in_executor(None, download)
         return os.path.exists(output_path) and os.path.getsize(output_path) > 0
@@ -4541,86 +4120,67 @@ async def download_kuaishou_video(url: str, output_path: str) -> bool:
         import aiohttp
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Referer': 'https://www.kuaishou.com/',
         }
         
         async with aiohttp.ClientSession() as session:
-            # 1. Пробуем через публичный API
-            try:
-                api_url = f"https://api.douyin.wtf/api?url={url}"
-                async with session.get(api_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        video_url = data.get('nwm_video_url') or data.get('video_url')
-                        if video_url:
-                            logger.info(f"[Kuaishou] API found video URL")
-                            # Скачиваем
-                            async with session.get(video_url, headers=headers, timeout=120) as video_resp:
-                                if video_resp.status == 200:
-                                    with open(output_path, 'wb') as f:
-                                        while True:
-                                            chunk = await video_resp.content.read(8192)
-                                            if not chunk:
-                                                break
-                                            f.write(chunk)
-                                    if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                                        return True
-            except Exception as e:
-                logger.debug(f"[Kuaishou] API failed: {e}")
+            # Получаем страницу
+            async with session.get(url, headers=headers, allow_redirects=True, timeout=30) as resp:
+                if resp.status != 200:
+                    logger.error(f"[Kuaishou] HTTP {resp.status}")
+                    return False
+                html = await resp.text()
             
-            # 2. Пробуем через мобильный User-Agent с редиректами
-            try:
-                async with session.get(url, headers=headers, allow_redirects=True, timeout=30) as resp:
-                    final_url = str(resp.url)
-                    html = await resp.text()
-                    logger.info(f"[Kuaishou] Final URL: {final_url[:80]}...")
-                    
-                    # Ищем URL видео в разных форматах
-                    video_patterns = [
-                        r'"srcNoMark"\s*:\s*"([^"]+)"',
-                        r'"photoUrl"\s*:\s*"([^"]+)"',
-                        r'"playUrl"\s*:\s*"([^"]+)"',
-                        r'"videoUrl"\s*:\s*"([^"]+)"',
-                        r'"url"\s*:\s*"(https?://[^"]*\.mp4[^"]*)"',
-                        r'video[^>]*src="([^"]+\.mp4[^"]*)"',
-                        r'"video_url"\s*:\s*"([^"]+)"',
-                        r'playAddr["\s:]+["\'](https?://[^"\']+)["\']',
-                    ]
-                    
-                    video_url = None
-                    for pattern in video_patterns:
-                        match = re.search(pattern, html)
-                        if match:
-                            video_url = match.group(1)
-                            video_url = video_url.encode().decode('unicode_escape')
-                            video_url = video_url.replace('\\u002F', '/').replace('\\/', '/')
-                            if video_url.startswith('http'):
-                                logger.info(f"[Kuaishou] Found via pattern: {pattern[:30]}...")
-                                break
-                            video_url = None
-                    
-                    if video_url:
-                        async with session.get(video_url, headers=headers, timeout=120) as video_resp:
-                            if video_resp.status == 200:
-                                with open(output_path, 'wb') as f:
-                                    while True:
-                                        chunk = await video_resp.content.read(8192)
-                                        if not chunk:
-                                            break
-                                        f.write(chunk)
-                                if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                                    return True
-            except Exception as e:
-                logger.debug(f"[Kuaishou] Direct fetch failed: {e}")
+            # Ищем URL видео БЕЗ водяного знака (srcNoMark имеет приоритет)
+            video_patterns = [
+                r'"srcNoMark"\s*:\s*"([^"]+)"',  # Без водяного знака - приоритет!
+                r'"photoUrl"\s*:\s*"([^"]+)"',   # Альтернатива без WM
+                r'"playUrl"\s*:\s*"([^"]+)"',
+                r'"url"\s*:\s*"(https?://[^"]*\.mp4[^"]*)"',
+                r'video\s+src="([^"]+)"',
+                r'"videoUrl"\s*:\s*"([^"]+)"',
+            ]
             
-            logger.error("[Kuaishou] All methods failed")
-            return False
+            video_url = None
+            for pattern in video_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    video_url = match.group(1)
+                    # Декодируем Unicode escape
+                    video_url = video_url.encode().decode('unicode_escape')
+                    video_url = video_url.replace('\\u002F', '/')
+                    break
+            
+            if not video_url:
+                logger.error("[Kuaishou] Video URL not found in page")
+                return False
+            
+            logger.info(f"[Kuaishou] Found video URL: {video_url[:100]}...")
+            
+            # Скачиваем видео
+            async with session.get(video_url, headers=headers, timeout=120) as video_resp:
+                if video_resp.status != 200:
+                    logger.error(f"[Kuaishou] Video download HTTP {video_resp.status}")
+                    return False
+                
+                with open(output_path, 'wb') as f:
+                    while True:
+                        chunk = await video_resp.content.read(8192)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+            
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 1000
             
     except Exception as e:
         logger.error(f"[Kuaishou] Error: {e}")
         return False
+
+# Хранилище URL для скачивания
+pending_urls: dict = {}  # short_id -> {user_id, url}
 
 def get_url_keyboard(short_id: str, user_id: int) -> InlineKeyboardMarkup:
     """ Клавиатура для ссылки: уникализировать или только скачать """
@@ -4857,7 +4417,6 @@ async def cb_url_process(callback: CallbackQuery):
     mode = rate_limiter.get_mode(user_id)
     quality = rate_limiter.get_quality(user_id)
     text_overlay = rate_limiter.get_text_overlay(user_id)
-    template = rate_limiter.get_template(user_id) or "none"  # v3.1.0: шаблон
     
     # Определяем приоритет на основе плана
     plan = rate_limiter.get_plan(user_id)
@@ -4905,24 +4464,15 @@ async def cb_url_process(callback: CallbackQuery):
                     caption += f"\n\n🎉 Новый уровень: {new_level}!"
                 if achievements:
                     for ach in achievements:
-                        caption += f"\n🏆 Достижение: {ach['name']}!"
+                        caption += f"\n🏆 Достижение: {ach['emoji']} {ach['name']}!"
                 
-                # Retry для отправки видео (до 3 попыток)
-                for send_attempt in range(3):
-                    try:
-                        await bot.send_video(
-                            chat_id=user_id,
-                            video=video_file,
-                            caption=caption,
-                            reply_markup=get_result_keyboard(new_short_id, user_id)
-                        )
-                        await status_message.delete()
-                        break
-                    except asyncio.TimeoutError:
-                        logger.warning(f"[SEND] Timeout, attempt {send_attempt + 1}/3")
-                        if send_attempt == 2:
-                            raise
-                        await asyncio.sleep(3)
+                await bot.send_video(
+                    chat_id=user_id,
+                    video=video_file,
+                    caption=caption,
+                    reply_markup=get_result_keyboard(new_short_id, user_id)
+                )
+                await status_message.delete()
             except Exception as e:
                 logger.error(f"Send error: {e}")
                 await status_message.edit_text(get_text(user_id, "error"))
@@ -4941,8 +4491,7 @@ async def cb_url_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)

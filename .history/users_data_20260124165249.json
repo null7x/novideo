@@ -6,9 +6,9 @@
     "monthly_videos": 0,
     "period_start": "",
     "daily_videos": 0,
-    "daily_date": "2026-01-24",
+    "daily_date": "",
     "weekly_videos": 0,
-    "week_start": "2026-01-24",
+    "week_start": "",
     "username": "Aminjon_ool",
     "total_downloads": 0,
     "monthly_downloads": 0,
@@ -31,10 +31,10 @@
     "points": 0,
     "level": 1,
     "achievements": [],
-    "watermark_file_id": "AgACAgIAAxkBAANaaXTHkm_rMrzCVj8lRCy3SkIXff8AAk0RaxsiNKhLs6T2BTAhxQwBAAMCAAN5AAM4BA",
+    "watermark_file_id": "",
     "watermark_position": "br",
     "resolution": "original",
-    "current_template": "food",
+    "current_template": "",
     "reminders": [],
     "weekly_stats": {},
     "merge_videos": [],
@@ -47,19 +47,17 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "7768016686": {
     "plan": "premium",
     "mode": "tiktok",
-    "total_videos": 7,
-    "monthly_videos": 7,
+    "total_videos": 3,
+    "monthly_videos": 3,
     "period_start": "2026-01-22",
-    "daily_videos": 6,
+    "daily_videos": 2,
     "daily_date": "2026-01-24",
-    "weekly_videos": 7,
+    "weekly_videos": 3,
     "week_start": "2026-01-22",
     "username": "Null7_x",
     "total_downloads": 3,
@@ -75,46 +73,20 @@
     "referral_bonus": 3,
     "plan_expires": "2125-01-24",
     "night_mode": false,
-    "history": [
-      {
-        "time": "2026-01-24T17:18:32.616389",
-        "type": "unique",
-        "source": "file"
-      },
-      {
-        "time": "2026-01-24T17:24:02.016817",
-        "type": "unique",
-        "source": "file"
-      },
-      {
-        "time": "2026-01-24T17:33:13.914222",
-        "type": "unique",
-        "source": "file"
-      },
-      {
-        "time": "2026-01-24T18:13:32.175320",
-        "type": "unique",
-        "source": "file"
-      }
-    ],
+    "history": [],
     "trial_used": false,
-    "streak_count": 1,
-    "streak_last_date": "2026-01-24",
+    "streak_count": 0,
+    "streak_last_date": "",
     "favorites": [],
-    "points": 100,
-    "level": 2,
-    "achievements": [
-      "first_video",
-      "referral_1"
-    ],
+    "points": 0,
+    "level": 1,
+    "achievements": [],
     "watermark_file_id": "",
     "watermark_position": "br",
     "resolution": "original",
-    "current_template": "gaming",
+    "current_template": "",
     "reminders": [],
-    "weekly_stats": {
-      "2026-01-24": 4
-    },
+    "weekly_stats": {},
     "merge_videos": [],
     "speed_setting": "1x",
     "rotation_setting": "",
@@ -125,9 +97,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "999999": {
     "plan": "free",
@@ -177,9 +147,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "888888888": {
     "plan": "free",
@@ -229,9 +197,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "999999999": {
     "plan": "free",
@@ -281,9 +247,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123456789": {
     "plan": "vip",
@@ -359,9 +323,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123457788": {
     "plan": "free",
@@ -411,9 +373,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123457789": {
     "plan": "free",
@@ -463,9 +423,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123458789": {
     "plan": "free",
@@ -515,9 +473,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123461789": {
     "plan": "free",
@@ -567,9 +523,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123459789": {
     "plan": "free",
@@ -619,9 +573,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123456889": {
     "plan": "free",
@@ -671,9 +623,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123456989": {
     "plan": "free",
@@ -723,9 +673,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "123457089": {
     "plan": "free",
@@ -775,9 +723,7 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   },
   "11111111": {
     "plan": "free",
@@ -843,8 +789,6 @@
     "compression_preset": "",
     "volume_setting": "100%",
     "scheduled_tasks": [],
-    "auto_process_template": "",
-    "is_admin": false,
-    "video_template": "none"
+    "auto_process_template": ""
   }
 }

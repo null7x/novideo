@@ -128,8 +128,6 @@ class UserState:
     pending_video_file_id: str = ""
     # v3.0.0: Dynamic admin flag
     is_admin: bool = False
-    # v3.1.0: Video template
-    video_template: str = "none"
 
 class RateLimiter:
     def __init__(self):
@@ -214,7 +212,6 @@ class RateLimiter:
                     "scheduled_tasks": getattr(user, 'scheduled_tasks', []),
                     "auto_process_template": getattr(user, 'auto_process_template', ''),
                     "is_admin": getattr(user, 'is_admin', False),
-                    "video_template": getattr(user, 'video_template', 'none'),
                 }
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -652,32 +649,6 @@ class RateLimiter:
     
     def get_quality(self, user_id: int) -> str:
         return self.get_user(user_id).quality
-    
-    # ═════════════════════════════════════════════════════════════
-    # v3.1.0: VIDEO TEMPLATES
-    # ═════════════════════════════════════════════════════════════
-    
-    def set_template(self, user_id: int, template: str):
-        """Установить шаблон видео"""
-        from config import VIDEO_TEMPLATES
-        if template in VIDEO_TEMPLATES:
-            user = self.get_user(user_id)
-            user.video_template = template
-            self.save_data()
-    
-    def get_template(self, user_id: int) -> str:
-        """Получить текущий шаблон"""
-        return getattr(self.get_user(user_id), 'video_template', 'none')
-    
-    def can_use_template(self, user_id: int, template: str) -> bool:
-        """Может ли пользователь использовать этот шаблон"""
-        from config import VIDEO_TEMPLATES
-        if template not in VIDEO_TEMPLATES:
-            return False
-        tpl = VIDEO_TEMPLATES[template]
-        if tpl.get("premium", False):
-            return self.get_plan(user_id) in ["vip", "premium"]
-        return True
     
     # ═════════════════════════════════════════════════════════════
     # TEXT OVERLAY SETTINGS

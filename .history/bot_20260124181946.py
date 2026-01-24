@@ -4941,8 +4941,7 @@ async def cb_url_process(callback: CallbackQuery):
         callback=on_complete,
         quality=quality,
         text_overlay=text_overlay,
-        priority=priority,
-        template=template
+        priority=priority
     )
     
     queued, position = await add_to_queue(task)
