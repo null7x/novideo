@@ -5618,10 +5618,28 @@ async def cb_process(callback: CallbackQuery):
                 if attempt == 2:
                     raise
                 await asyncio.sleep(2)
+        
+        # Проверяем что файл скачался корректно
+        if not os.path.exists(input_path):
+            logger.error(f"[PROCESS] File not found after download: {input_path}")
+            rate_limiter.set_processing(user_id, False)
+            await callback.message.edit_text(get_text(user_id, "error_download"))
+            return
+        
+        file_size = os.path.getsize(input_path)
+        if file_size < 1000:  # Меньше 1KB = битый файл
+            logger.error(f"[PROCESS] Downloaded file too small: {file_size} bytes")
+            cleanup_file(input_path)
+            rate_limiter.set_processing(user_id, False)
+            await callback.message.edit_text(get_text(user_id, "error_download"))
+            return
+        
+        logger.info(f"[PROCESS] File downloaded successfully: {file_size} bytes")
+        
     except Exception as e:
         logger.error(f"Download error: {type(e).__name__}: {e}")
         rate_limiter.set_processing(user_id, False)
-        await callback.message.edit_text(get_text(user_id, "error"))
+        await callback.message.edit_text(get_text(user_id, "error_download"))
         return
     
     mode = rate_limiter.get_mode(user_id)

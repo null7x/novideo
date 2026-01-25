@@ -846,6 +846,11 @@ def _build_youtube_filter(width: int, height: int) -> Tuple[str, str, dict]:
 
 async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float, float]]:
     """Получает width, height, duration, fps из видео"""
+    # Проверяем что файл существует
+    if not os.path.exists(input_path):
+        print(f"[FFPROBE] File not found: {input_path}")
+        return None
+    
     cmd = [
         FFPROBE_PATH,
         "-v", "error",
@@ -861,10 +866,21 @@ async def get_video_info(input_path: str) -> Optional[Tuple[int, int, float, flo
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        
+        # Логируем ошибки ffprobe
+        if stderr:
+            stderr_text = stderr.decode().strip()
+            if stderr_text:
+                print(f"[FFPROBE] stderr: {stderr_text[:200]}")
         
         # Формат вывода: width,height,r_frame_rate,duration
-        parts = stdout.decode().strip().split(",")
+        output = stdout.decode().strip()
+        if not output:
+            print(f"[FFPROBE] Empty output for file: {input_path}")
+            return None
+            
+        parts = output.split(",")
         if len(parts) >= 2:
             width = int(parts[0])
             height = int(parts[1])
@@ -949,8 +965,21 @@ async def process_video(input_path: str, output_path: str, mode: str,
         user_id: ID пользователя для Watermark-Trap
         enable_watermark_trap: Включить невидимый цифровой отпечаток
     """
+    # Проверяем что входной файл существует и не пустой
+    if not os.path.exists(input_path):
+        print(f"[FFMPEG] Input file not found: {input_path}")
+        return False
+    
+    file_size = os.path.getsize(input_path)
+    if file_size < 1000:
+        print(f"[FFMPEG] Input file too small ({file_size} bytes): {input_path}")
+        return False
+    
+    print(f"[FFMPEG] Processing file: {input_path} ({file_size} bytes)")
+    
     info = await get_video_info(input_path)
     if not info:
+        print(f"[FFMPEG] Failed to get video info for: {input_path}")
         return False
     
     width, height, duration, source_fps = info
