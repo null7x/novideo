@@ -5727,7 +5727,10 @@ async def cb_process(callback: CallbackQuery):
         enable_watermark_trap=enable_watermark_trap
     )
     
+    logger.info(f"[PROCESS] Adding task to queue for user {user_id}")
     queued, position = await add_to_queue(task)
+    logger.info(f"[PROCESS] Queue result: queued={queued}, position={position}")
+    
     if not queued:
         rate_limiter.set_processing(user_id, False)
         cleanup_file(input_path)

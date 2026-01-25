@@ -1160,10 +1160,11 @@ active_tasks: dict = {}
 async def worker():
     while True:
         # Получаем задачу с учётом приоритета
+        print("[WORKER] Waiting for task...")
         priority, task = await processing_queue.get()
         task: ProcessingTask
         
-        print(f"[WORKER] Processing task for user {task.user_id}, template={task.template}")
+        print(f"[WORKER] Got task for user {task.user_id}, template={task.template}, input={task.input_path}")
         
         # Проверяем отмену
         if task.cancelled:
@@ -1173,6 +1174,7 @@ async def worker():
             continue
         
         try:
+            print(f"[WORKER] Starting FFmpeg processing...")
             success = await process_video(
                 task.input_path, task.output_path, task.mode,
                 task.quality, task.text_overlay, task.template,
@@ -1180,7 +1182,7 @@ async def worker():
                 enable_watermark_trap=task.enable_watermark_trap
             )
             
-            print(f"[WORKER] Process result: success={success}, watermark_trap={task.enable_watermark_trap}")
+            print(f"[WORKER] Process result: success={success}, output_exists={os.path.exists(task.output_path)}")
             
             # v3.1.1: Автоматическое сжатие если файл > 49MB (Telegram limit = 50MB)
             TELEGRAM_MAX_SIZE = 49 * 1024 * 1024  # 49MB с запасом
@@ -1230,7 +1232,10 @@ async def add_to_queue(task: ProcessingTask) -> Tuple[bool, int]:
     Добавить задачу в очередь.
     Returns: (success, position)
     """
+    print(f"[QUEUE] Adding task for user {task.user_id}, queue_full={processing_queue.full()}, queue_size={processing_queue.qsize()}")
+    
     if processing_queue.full():
+        print(f"[QUEUE] Queue is full! Cannot add task.")
         return False, 0
     
     # Сохраняем задачу для возможности отмены
@@ -1241,6 +1246,7 @@ async def add_to_queue(task: ProcessingTask) -> Tuple[bool, int]:
     
     # Позиция в очереди
     position = processing_queue.qsize()
+    print(f"[QUEUE] Task added successfully, position={position}")
     return True, position
 
 def cancel_task(user_id: int) -> bool:
