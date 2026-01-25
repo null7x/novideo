@@ -109,6 +109,7 @@ HOOK_TEXTS = [
 def init_queue():
     global processing_queue
     processing_queue = asyncio.PriorityQueue(maxsize=MAX_QUEUE_SIZE)
+    print(f"[INIT] Queue initialized with max size {MAX_QUEUE_SIZE}")
 
 def get_temp_dir() -> Path:
     temp_dir = Path(tempfile.gettempdir()) / "virex"
@@ -1221,11 +1222,14 @@ async def worker():
             active_tasks.pop(task.task_id, None)
 
 async def start_workers():
+    print(f"[INIT] Starting {MAX_CONCURRENT_TASKS} workers...")
     init_queue()
-    for _ in range(MAX_CONCURRENT_TASKS):
+    for i in range(MAX_CONCURRENT_TASKS):
         asyncio.create_task(worker())
+        print(f"[INIT] Worker {i+1} started")
     # v2.8.0: Запуск периодической очистки
     asyncio.create_task(periodic_cleanup())
+    print(f"[INIT] All workers started, queue ready")
 
 async def add_to_queue(task: ProcessingTask) -> Tuple[bool, int]:
     """
