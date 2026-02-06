@@ -463,6 +463,41 @@ def get_buy_premium_keyboard(user_id: int) -> InlineKeyboardMarkup:
 # HANDLERS
 # ══════════════════════════════════════════════════════════════════════════════
 
+@dp.message(Command("app"))
+async def cmd_app_auth(message: Message):
+    """Авторизация для Android/iOS приложения"""
+    import secrets
+    import json
+    
+    user_id = message.from_user.id
+    auth_code = secrets.token_hex(8)
+    
+    # Сохраняем код авторизации
+    users_file = "users_data.json"
+    users_data = {}
+    if os.path.exists(users_file):
+        with open(users_file, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+    
+    if str(user_id) not in users_data:
+        users_data[str(user_id)] = {}
+    users_data[str(user_id)]["app_auth_code"] = auth_code
+    users_data[str(user_id)]["username"] = message.from_user.username
+    users_data[str(user_id)]["first_name"] = message.from_user.first_name
+    
+    with open(users_file, 'w', encoding='utf-8') as f:
+        json.dump(users_data, f, ensure_ascii=False, indent=2)
+    
+    await message.answer(
+        f"🔐 <b>Авторизация для приложения VIREX PRO</b>\n\n"
+        f"Твой код авторизации:\n\n"
+        f"<code>{user_id}:{auth_code}</code>\n\n"
+        f"📋 Нажми на код чтобы скопировать, затем вставь его в приложении.\n\n"
+        f"📱 URL сервера: <code>http://10.231.237.104:8080</code>\n\n"
+        f"⏰ Код действителен 1 час."
+    )
+
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     user_id = message.from_user.id
