@@ -477,15 +477,70 @@ async def cmd_start(message: Message):
     if message.from_user.username:
         rate_limiter.set_username(user_id, message.from_user.username)
     
-    # Проверка реферальной ссылки
+    # Проверка deep link параметров
     args = message.text.split()
     referrer_id = None
-    if len(args) > 1 and args[1].startswith("ref"):
-        try:
-            referrer_id = int(args[1][3:])
-            print(f"[START] User {user_id} came with referral link from {referrer_id}")
-        except:
-            pass
+    
+    if len(args) > 1:
+        param = args[1]
+        
+        # Авторизация для Android приложения
+        if param == "app_auth":
+            import secrets
+            import json
+            auth_code = secrets.token_hex(8)  # Короткий код для удобства
+            
+            # Сохраняем код авторизации в users_data.json
+            users_file = "users_data.json"
+            users_data = {}
+            if os.path.exists(users_file):
+                with open(users_file, 'r', encoding='utf-8') as f:
+                    users_data = json.load(f)
+            
+            if str(user_id) not in users_data:
+                users_data[str(user_id)] = {}
+            users_data[str(user_id)]["app_auth_code"] = auth_code
+            users_data[str(user_id)]["username"] = message.from_user.username
+            users_data[str(user_id)]["first_name"] = message.from_user.first_name
+            
+            with open(users_file, 'w', encoding='utf-8') as f:
+                json.dump(users_data, f, ensure_ascii=False, indent=2)
+            
+            # Отправляем код для копирования в приложение
+            await message.answer(
+                f"🔐 <b>Авторизация для приложения VIREX PRO</b>\n\n"
+                f"Твой код авторизации:\n\n"
+                f"<code>{user_id}:{auth_code}</code>\n\n"
+                f"📋 Нажми на код чтобы скопировать, затем вставь его в приложении.\n\n"
+                f"⏰ Код действителен 1 час."
+            )
+            return
+        
+        # Покупка подписки через приложение
+        if param.startswith("buy_"):
+            plan = param[4:]  # week, month, year, forever
+            # Перенаправляем на покупку
+            from aiogram.types import CallbackQuery
+            # Симулируем нажатие кнопки подписки
+            if plan in ["week", "month", "year", "forever"]:
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Перейти к оплате", callback_data=f"buy_{plan}")]
+                ])
+                await message.answer(
+                    f"💎 <b>Покупка подписки</b>\n\n"
+                    f"Вы выбрали тариф: <b>{plan}</b>\n"
+                    f"Нажмите кнопку ниже для оплаты:",
+                    reply_markup=keyboard
+                )
+                return
+        
+        # Реферальная ссылка
+        if param.startswith("ref"):
+            try:
+                referrer_id = int(param[3:])
+                print(f"[START] User {user_id} came with referral link from {referrer_id}")
+            except:
+                pass
     
     # Уведомление админа о новом пользователе
     is_new = rate_limiter.is_new_user(user_id)

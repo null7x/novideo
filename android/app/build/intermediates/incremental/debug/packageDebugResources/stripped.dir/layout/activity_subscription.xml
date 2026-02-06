@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background" android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="?attr/actionBarSize" android:background="@color/surface" app:navigationIcon="@drawable/ic_back" app:title="Подписка" app:titleTextColor="@color/text_primary" />
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
+
+            <!-- Current Status -->
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp" app:cardBackgroundColor="@color/surface" app:cardCornerRadius="16dp">
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:padding="24dp">
+
+                    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_star" app:tint="@color/premium_gold" />
+
+                    <TextView android:id="@+id/tvCurrentStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Free" android:textColor="@color/text_primary" android:textSize="24sp" android:textStyle="bold" />
+
+                    <TextView android:id="@+id/tvExpires" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Действует до: --" android:textColor="@color/text_secondary" android:textSize="14sp" android:visibility="gone" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Features -->
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:text="Premium преимущества" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp" android:lineSpacingExtra="8dp" android:text="✓ Без лимитов на видео\n✓ Все шаблоны\n✓ Watermark-Trap защита\n✓ Без рекламы\n✓ Приоритетная обработка\n✓ Техподдержка 24/7" android:textColor="@color/text_secondary" android:textSize="16sp" />
+
+            <!-- Pricing -->
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:text="Тарифы" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
+
+            <!-- Week -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnBuyWeek" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginBottom="12dp" android:text="Неделя — 99₽" android:textSize="16sp" />
+
+            <!-- Month -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnBuyMonth" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginBottom="12dp" android:text="Месяц — 299₽" android:textSize="16sp" />
+
+            <!-- Year -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnBuyYear" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginBottom="12dp" android:text="Год — 1490₽ (экономия 70%)" android:textSize="16sp" />
+
+            <!-- Forever -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnBuyForever" android:layout_width="match_parent" android:layout_height="56dp" android:text="Навсегда — 2990₽" android:textSize="16sp" app:backgroundTint="@color/premium_gold" />
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:text="Оплата через Telegram Bot" android:textColor="@color/text_hint" android:textSize="12sp" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

@@ -1,0 +1,30 @@
+[
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/activity_process.xml",
+        "source": "com.virex.pro.app-main-46:/layout/activity_process.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/activity_settings.xml",
+        "source": "com.virex.pro.app-main-46:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/activity_main.xml",
+        "source": "com.virex.pro.app-main-46:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/item_history.xml",
+        "source": "com.virex.pro.app-main-46:/layout/item_history.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/item_template.xml",
+        "source": "com.virex.pro.app-main-46:/layout/item_template.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/activity_history.xml",
+        "source": "com.virex.pro.app-main-46:/layout/activity_history.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-mergeDebugResources-43:/layout/activity_subscription.xml",
+        "source": "com.virex.pro.app-main-46:/layout/activity_subscription.xml"
+    }
+]

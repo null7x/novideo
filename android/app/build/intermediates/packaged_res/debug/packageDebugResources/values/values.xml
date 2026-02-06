@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#121212</color>
+    <color name="black">#000000</color>
+    <color name="error">#FF6B6B</color>
+    <color name="lock_overlay">#80000000</color>
+    <color name="premium_gold">#FFD700</color>
+    <color name="primary">#6C5CE7</color>
+    <color name="primary_dark">#5B4CD4</color>
+    <color name="primary_light">#8B7EEA</color>
+    <color name="secondary">#00CEC9</color>
+    <color name="success">#51CF66</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="surface_variant">#2A2A2A</color>
+    <color name="telegram_blue">#0088CC</color>
+    <color name="text_hint">#707070</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    <color name="white">#FFFFFF</color>
+    <string name="app_name">VIREX PRO</string>
+    <style name="Theme.VirexPro" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorError">@color/error</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+    </style>
+    <style name="Theme.VirexPro.Splash" parent="Theme.VirexPro">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+</resources>

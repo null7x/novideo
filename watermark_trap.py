@@ -247,8 +247,8 @@ class PixelDriftTrap:
         # Микро-сдвиг яркости уникальный для пользователя
         brightness_offset = ((seed % 200) - 100) / 10000.0  # ±0.01
         
-        # Микро-шум с уникальным паттерном
-        noise_seed = seed % 65536
+        # Микро-шум с уникальным паттерном (c0s max = 100)
+        noise_seed = (seed % 50) + 1  # 1-50, безопасный диапазон
         
         return f"eq=brightness={brightness_offset:.6f},noise=c0s={noise_seed}:c0f=t+u:alls=3:allf=t+u"
 
@@ -312,10 +312,10 @@ class TemporalNoiseTrap:
         amplitude = TRAP_CONFIG.temporal_strength
         
         # eq фильтр с временной модуляцией через выражение
-        # N = номер кадра, T = время
+        # n = номер кадра, t = время
         temporal_filter = (
-            f"eq=brightness='{amplitude:.5f}*sin({freq:.5f}*N + {phase:.4f})':"
-            f"contrast='1 + {amplitude * 0.3:.5f}*cos({freq * 1.3:.5f}*N + {phase:.4f})'"
+            f"eq=brightness='{amplitude:.5f}*sin({freq:.5f}*n + {phase:.4f})':"
+            f"contrast='1 + {amplitude * 0.3:.5f}*cos({freq * 1.3:.5f}*n + {phase:.4f})'"
         )
         
         return temporal_filter

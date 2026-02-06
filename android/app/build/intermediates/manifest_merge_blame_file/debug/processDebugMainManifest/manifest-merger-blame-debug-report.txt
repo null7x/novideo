@@ -1,0 +1,263 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.virex.pro"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- Разрешения -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->D:\github\4\android\app\src\main\AndroidManifest.xml:6:5-67
+12-->D:\github\4\android\app\src\main\AndroidManifest.xml:6:22-64
+13    <uses-permission
+13-->D:\github\4\android\app\src\main\AndroidManifest.xml:7:5-107
+14        android:name="android.permission.READ_EXTERNAL_STORAGE"
+14-->D:\github\4\android\app\src\main\AndroidManifest.xml:7:22-77
+15        android:maxSdkVersion="32" />
+15-->D:\github\4\android\app\src\main\AndroidManifest.xml:7:78-104
+16    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+16-->D:\github\4\android\app\src\main\AndroidManifest.xml:8:5-75
+16-->D:\github\4\android\app\src\main\AndroidManifest.xml:8:22-72
+17    <uses-permission
+17-->D:\github\4\android\app\src\main\AndroidManifest.xml:9:5-137
+18        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+18-->D:\github\4\android\app\src\main\AndroidManifest.xml:9:22-78
+19        android:maxSdkVersion="29" />
+19-->D:\github\4\android\app\src\main\AndroidManifest.xml:9:79-105
+20    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+20-->D:\github\4\android\app\src\main\AndroidManifest.xml:10:5-79
+20-->D:\github\4\android\app\src\main\AndroidManifest.xml:10:22-76
+21    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+21-->D:\github\4\android\app\src\main\AndroidManifest.xml:11:5-77
+21-->D:\github\4\android\app\src\main\AndroidManifest.xml:11:22-74
+22    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+22-->D:\github\4\android\app\src\main\AndroidManifest.xml:12:5-87
+22-->D:\github\4\android\app\src\main\AndroidManifest.xml:12:22-84
+23    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+23-->D:\github\4\android\app\src\main\AndroidManifest.xml:13:5-77
+23-->D:\github\4\android\app\src\main\AndroidManifest.xml:13:22-74
+24
+25    <permission
+25-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+26        android:name="com.virex.pro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+26-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+27        android:protectionLevel="signature" />
+27-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+28
+29    <uses-permission android:name="com.virex.pro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+29-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+29-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+30
+31    <application
+31-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:5-53:19
+32        android:name="com.virex.pro.VirexApp"
+32-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:18-42
+33        android:allowBackup="true"
+33-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:43-69
+34        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+34-->[androidx.core:core:1.12.0] C:\Users\user\.gradle\caches\8.12\transforms\27c9a519c6bd22c8008ed223529af961\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+35        android:debuggable="true"
+36        android:extractNativeLibs="false"
+37        android:hardwareAccelerated="true"
+37-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:371-405
+38        android:icon="@mipmap/ic_launcher"
+38-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:70-104
+39        android:label="@string/app_name"
+39-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:105-137
+40        android:largeHeap="true"
+40-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:346-370
+41        android:networkSecurityConfig="@xml/network_security_config"
+41-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:285-345
+42        android:roundIcon="@mipmap/ic_launcher_round"
+42-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:138-183
+43        android:supportsRtl="true"
+43-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:184-210
+44        android:theme="@style/Theme.VirexPro"
+44-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:211-248
+45        android:usesCleartextTraffic="true" >
+45-->D:\github\4\android\app\src\main\AndroidManifest.xml:15:249-284
+46
+47        <!-- Главный экран -->
+48        <activity
+48-->D:\github\4\android\app\src\main\AndroidManifest.xml:18:9-31:20
+49            android:name="com.virex.pro.ui.MainActivity"
+49-->D:\github\4\android\app\src\main\AndroidManifest.xml:18:19-50
+50            android:exported="true"
+50-->D:\github\4\android\app\src\main\AndroidManifest.xml:18:51-74
+51            android:launchMode="singleTask"
+51-->D:\github\4\android\app\src\main\AndroidManifest.xml:18:75-106
+52            android:theme="@style/Theme.VirexPro.Splash" >
+52-->D:\github\4\android\app\src\main\AndroidManifest.xml:18:107-151
+53            <intent-filter>
+53-->D:\github\4\android\app\src\main\AndroidManifest.xml:19:13-22:29
+54                <action android:name="android.intent.action.MAIN" />
+54-->D:\github\4\android\app\src\main\AndroidManifest.xml:20:17-69
+54-->D:\github\4\android\app\src\main\AndroidManifest.xml:20:25-66
+55
+56                <category android:name="android.intent.category.LAUNCHER" />
+56-->D:\github\4\android\app\src\main\AndroidManifest.xml:21:17-77
+56-->D:\github\4\android\app\src\main\AndroidManifest.xml:21:27-74
+57            </intent-filter>
+58
+59            <!-- Deep Link для авторизации через Telegram -->
+60            <intent-filter android:autoVerify="true" >
+60-->D:\github\4\android\app\src\main\AndroidManifest.xml:25:13-30:29
+60-->D:\github\4\android\app\src\main\AndroidManifest.xml:25:28-53
+61                <action android:name="android.intent.action.VIEW" />
+61-->D:\github\4\android\app\src\main\AndroidManifest.xml:26:17-69
+61-->D:\github\4\android\app\src\main\AndroidManifest.xml:26:25-66
+62
+63                <category android:name="android.intent.category.DEFAULT" />
+63-->D:\github\4\android\app\src\main\AndroidManifest.xml:27:17-76
+63-->D:\github\4\android\app\src\main\AndroidManifest.xml:27:27-73
+64                <category android:name="android.intent.category.BROWSABLE" />
+64-->D:\github\4\android\app\src\main\AndroidManifest.xml:28:17-78
+64-->D:\github\4\android\app\src\main\AndroidManifest.xml:28:27-75
+65
+66                <data
+66-->D:\github\4\android\app\src\main\AndroidManifest.xml:29:17-71
+67                    android:host="auth"
+67-->D:\github\4\android\app\src\main\AndroidManifest.xml:29:49-68
+68                    android:scheme="virexpro" />
+68-->D:\github\4\android\app\src\main\AndroidManifest.xml:29:23-48
+69            </intent-filter>
+70        </activity>
+71
+72        <!-- Экран обработки видео -->
+73        <activity
+73-->D:\github\4\android\app\src\main\AndroidManifest.xml:34:9-127
+74            android:name="com.virex.pro.ui.ProcessActivity"
+74-->D:\github\4\android\app\src\main\AndroidManifest.xml:34:19-53
+75            android:exported="false"
+75-->D:\github\4\android\app\src\main\AndroidManifest.xml:34:54-78
+76            android:parentActivityName="com.virex.pro.ui.MainActivity" />
+76-->D:\github\4\android\app\src\main\AndroidManifest.xml:34:79-124
+77
+78        <!-- Экран подписки -->
+79        <activity
+79-->D:\github\4\android\app\src\main\AndroidManifest.xml:37:9-132
+80            android:name="com.virex.pro.ui.SubscriptionActivity"
+80-->D:\github\4\android\app\src\main\AndroidManifest.xml:37:19-58
+81            android:exported="false"
+81-->D:\github\4\android\app\src\main\AndroidManifest.xml:37:59-83
+82            android:parentActivityName="com.virex.pro.ui.MainActivity" />
+82-->D:\github\4\android\app\src\main\AndroidManifest.xml:37:84-129
+83
+84        <!-- Экран настроек -->
+85        <activity
+85-->D:\github\4\android\app\src\main\AndroidManifest.xml:40:9-128
+86            android:name="com.virex.pro.ui.SettingsActivity"
+86-->D:\github\4\android\app\src\main\AndroidManifest.xml:40:19-54
+87            android:exported="false"
+87-->D:\github\4\android\app\src\main\AndroidManifest.xml:40:55-79
+88            android:parentActivityName="com.virex.pro.ui.MainActivity" />
+88-->D:\github\4\android\app\src\main\AndroidManifest.xml:40:80-125
+89
+90        <!-- Экран истории -->
+91        <activity
+91-->D:\github\4\android\app\src\main\AndroidManifest.xml:43:9-127
+92            android:name="com.virex.pro.ui.HistoryActivity"
+92-->D:\github\4\android\app\src\main\AndroidManifest.xml:43:19-53
+93            android:exported="false"
+93-->D:\github\4\android\app\src\main\AndroidManifest.xml:43:54-78
+94            android:parentActivityName="com.virex.pro.ui.MainActivity" />
+94-->D:\github\4\android\app\src\main\AndroidManifest.xml:43:79-124
+95
+96        <!-- Сервис для обработки видео в фоне -->
+97        <service
+97-->D:\github\4\android\app\src\main\AndroidManifest.xml:46:9-130
+98            android:name="com.virex.pro.service.VideoProcessService"
+98-->D:\github\4\android\app\src\main\AndroidManifest.xml:46:18-61
+99            android:exported="false"
+99-->D:\github\4\android\app\src\main\AndroidManifest.xml:46:62-86
+100            android:foregroundServiceType="dataSync" />
+100-->D:\github\4\android\app\src\main\AndroidManifest.xml:46:87-127
+101
+102        <!-- File Provider для sharing -->
+103        <provider
+104            android:name="androidx.core.content.FileProvider"
+104-->D:\github\4\android\app\src\main\AndroidManifest.xml:49:19-68
+105            android:authorities="com.virex.pro.fileprovider"
+105-->D:\github\4\android\app\src\main\AndroidManifest.xml:49:69-120
+106            android:exported="false"
+106-->D:\github\4\android\app\src\main\AndroidManifest.xml:49:121-145
+107            android:grantUriPermissions="true" >
+107-->D:\github\4\android\app\src\main\AndroidManifest.xml:49:146-180
+108            <meta-data
+108-->D:\github\4\android\app\src\main\AndroidManifest.xml:50:13-112
+109                android:name="android.support.FILE_PROVIDER_PATHS"
+109-->D:\github\4\android\app\src\main\AndroidManifest.xml:50:24-74
+110                android:resource="@xml/file_paths" />
+110-->D:\github\4\android\app\src\main\AndroidManifest.xml:50:75-109
+111        </provider>
+112        <provider
+112-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+113            android:name="androidx.startup.InitializationProvider"
+113-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:25:13-67
+114            android:authorities="com.virex.pro.androidx-startup"
+114-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:26:13-68
+115            android:exported="false" >
+115-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:27:13-37
+116            <meta-data
+116-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+117                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+117-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:30:17-75
+118                android:value="androidx.startup" />
+118-->[androidx.emoji2:emoji2:1.2.0] C:\Users\user\.gradle\caches\8.12\transforms\c7d52ae23e340f9516d1474813e39431\transformed\emoji2-1.2.0\AndroidManifest.xml:31:17-49
+119            <meta-data
+119-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\user\.gradle\caches\8.12\transforms\37686b6ca09cbe9119a1a1f125ce24b9\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+120                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+120-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\user\.gradle\caches\8.12\transforms\37686b6ca09cbe9119a1a1f125ce24b9\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+121                android:value="androidx.startup" />
+121-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\user\.gradle\caches\8.12\transforms\37686b6ca09cbe9119a1a1f125ce24b9\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+122            <meta-data
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+123                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+123-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+124                android:value="androidx.startup" />
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+125        </provider>
+126
+127        <receiver
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+128            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+128-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+129            android:directBootAware="false"
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+130            android:enabled="true"
+130-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+131            android:exported="true"
+131-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+132            android:permission="android.permission.DUMP" >
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+133            <intent-filter>
+133-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+134                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+135            </intent-filter>
+136            <intent-filter>
+136-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+137                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+137-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+137-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+138            </intent-filter>
+139            <intent-filter>
+139-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+140                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+140-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+140-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+141            </intent-filter>
+142            <intent-filter>
+142-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+143                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+143-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+143-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\user\.gradle\caches\8.12\transforms\53a35a32b061bb205967fd67be249b21\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+144            </intent-filter>
+145        </receiver>
+146    </application>
+147
+148</manifest>

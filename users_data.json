@@ -53,19 +53,19 @@
   },
   "7768016686": {
     "plan": "premium",
-    "mode": "tiktok",
-    "total_videos": 7,
-    "monthly_videos": 7,
+    "mode": "youtube",
+    "total_videos": 10,
+    "monthly_videos": 9,
     "period_start": "2026-01-22",
-    "daily_videos": 6,
-    "daily_date": "2026-01-24",
-    "weekly_videos": 7,
+    "daily_videos": 3,
+    "daily_date": "2026-01-25",
+    "weekly_videos": 9,
     "week_start": "2026-01-22",
     "username": "Null7_x",
     "total_downloads": 3,
     "monthly_downloads": 3,
     "first_seen": "",
-    "quality": "medium",
+    "quality": "max",
     "text_overlay": true,
     "banned": false,
     "ban_reason": "",
@@ -95,13 +95,23 @@
         "time": "2026-01-24T18:13:32.175320",
         "type": "unique",
         "source": "file"
+      },
+      {
+        "time": "2026-01-25T13:03:02.841333",
+        "type": "unique",
+        "source": "file"
+      },
+      {
+        "time": "2026-01-25T14:19:59.220848",
+        "type": "unique",
+        "source": "file"
       }
     ],
     "trial_used": false,
-    "streak_count": 1,
-    "streak_last_date": "2026-01-24",
+    "streak_count": 2,
+    "streak_last_date": "2026-01-25",
     "favorites": [],
-    "points": 100,
+    "points": 120,
     "level": 2,
     "achievements": [
       "first_video",
@@ -113,7 +123,8 @@
     "current_template": "gaming",
     "reminders": [],
     "weekly_stats": {
-      "2026-01-24": 4
+      "2026-01-24": 4,
+      "2026-01-25": 1
     },
     "merge_videos": [],
     "speed_setting": "1x",

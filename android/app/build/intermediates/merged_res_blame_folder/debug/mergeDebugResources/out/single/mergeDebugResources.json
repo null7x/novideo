@@ -1,0 +1,142 @@
+[
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_video.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_video.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_instagram.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_instagram.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_youtube.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_youtube.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_save.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_save.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_cinematic.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_cinematic.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_delete.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_delete.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_activity_main.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_share.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_share.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_back.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_back.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_star.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_star.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_vintage.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_vintage.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_item_history.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/item_history.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_history.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_history.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/xml_network_security_config.xml.flat",
+        "source": "com.virex.pro.app-main-46:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_item_template.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/item_template.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_activity_history.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/activity_history.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_settings.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_settings.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_clean.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_clean.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.virex.pro.app-main-46:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_activity_settings.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_logout.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_logout.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_bg_icon_gradient.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/bg_icon_gradient.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_vlog.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_vlog.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_tiktok.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_tiktok.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_telegram.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_telegram.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.virex.pro.app-main-46:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_process.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_process.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_download.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_download.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/xml_file_paths.xml.flat",
+        "source": "com.virex.pro.app-main-46:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_activity_subscription.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/activity_subscription.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_bg_premium_badge.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/bg_premium_badge.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_ic_gaming.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/ic_gaming.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/drawable_bg_chip.xml.flat",
+        "source": "com.virex.pro.app-main-46:/drawable/bg_chip.xml"
+    },
+    {
+        "merged": "com.virex.pro.app-debug-44:/layout_activity_process.xml.flat",
+        "source": "com.virex.pro.app-main-46:/layout/activity_process.xml"
+    }
+]

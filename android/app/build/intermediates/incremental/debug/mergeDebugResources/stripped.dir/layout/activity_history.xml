@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/background">
+
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="?attr/actionBarSize" app:title="📁 История" app:titleTextColor="@color/text_primary" app:navigationIcon="@drawable/ic_back" app:navigationIconTint="@color/text_primary" />
+
+    <!-- Информация -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingHorizontal="16dp" android:paddingVertical="8dp" android:gravity="center_vertical">
+
+        <TextView android:id="@+id/tvTotalCount" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Всего: 0 видео" android:textColor="@color/text_secondary" android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnClearAll" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Очистить всё" android:textAllCaps="false" android:textColor="@color/error" android:textSize="13sp" android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Список видео -->
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvHistory" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:padding="8dp" />
+
+    <!-- Пустой список -->
+    <LinearLayout android:id="@+id/emptyLayout" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center" android:orientation="vertical" android:visibility="gone">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📭" android:textSize="64sp" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="История пуста" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Обработанные видео появятся здесь" android:textColor="@color/text_secondary" android:textSize="14sp" />
+
+    </LinearLayout>
+
+</LinearLayout>

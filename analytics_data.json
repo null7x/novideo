@@ -1,0 +1,21 @@
+{
+  "7768016686": {
+    "user_id": 7768016686,
+    "total_processed": 2,
+    "total_scanned": 1,
+    "matches_detected": 0,
+    "stolen_detected": 0,
+    "passports_created": 0,
+    "platforms": {
+      "tiktok": 1,
+      "youtube": 1
+    },
+    "templates_used": {
+      "gaming": 2
+    },
+    "avg_originality_score": 95.0,
+    "high_risk_count": 0,
+    "first_use": 1769328182.84156,
+    "last_use": 1769332799.2208962
+  }
+}

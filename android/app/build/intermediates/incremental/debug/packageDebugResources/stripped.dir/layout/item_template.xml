@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/cardTemplate" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="6dp" android:checkable="true" android:clickable="true" android:focusable="true" app:cardBackgroundColor="@color/surface" app:cardCornerRadius="20dp" app:cardElevation="4dp" app:strokeColor="@color/primary" app:strokeWidth="0dp" app:rippleColor="@color/primary_light">
+
+    <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="14dp">
+
+        <!-- Icon with gradient background -->
+        <FrameLayout android:id="@+id/iconContainer" android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_icon_gradient" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView android:id="@+id/ivTemplateIcon" android:layout_width="28dp" android:layout_height="28dp" android:layout_gravity="center" android:src="@drawable/ic_video" app:tint="@color/white" />
+        </FrameLayout>
+
+        <TextView android:id="@+id/tvTemplateName" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_marginEnd="8dp" android:text="Template" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" app:layout_constraintEnd_toStartOf="@id/tvPremiumBadge" app:layout_constraintStart_toEndOf="@id/iconContainer" app:layout_constraintTop_toTopOf="@id/iconContainer" />
+
+        <TextView android:id="@+id/tvTemplateDescription" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_marginTop="4dp" android:layout_marginEnd="8dp" android:ellipsize="end" android:maxLines="2" android:text="Description" android:textColor="@color/text_secondary" android:textSize="12sp" android:lineSpacingExtra="2dp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/iconContainer" app:layout_constraintTop_toBottomOf="@id/tvTemplateName" />
+
+        <TextView android:id="@+id/tvPremiumBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/bg_premium_badge" android:paddingHorizontal="10dp" android:paddingVertical="4dp" android:text="PRO" android:textColor="@color/white" android:textSize="10sp" android:textStyle="bold" android:visibility="gone" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent" />
+
+        <View android:id="@+id/viewLockOverlay" android:layout_width="0dp" android:layout_height="0dp" android:background="@color/lock_overlay" android:visibility="gone" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
